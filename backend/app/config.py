@@ -72,6 +72,8 @@ class Settings(BaseSettings):
 
     # Discovery
     discovery_cron: str = "0 */6 * * *"
+    # Run a full cycle as soon as the backend starts (not only on the cron).
+    run_on_startup: bool = True
     http_timeout: int = 20
     max_concurrency: int = 4
 

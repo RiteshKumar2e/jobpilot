@@ -50,13 +50,17 @@ async def lifespan(app: FastAPI):
              extra={"approval_mode": settings.approval_mode.value,
                     "llm": settings.llm_provider.value,
                     "sheets": sheets.enabled})
-    # Resume anything left mid-pipeline after a previous crash. In a background
-    # thread so the API is reachable immediately (thousands of jobs can be pending).
+    # On start: a full cycle (queued jobs + fresh discovery + Sheets sync) so one
+    # click on start_jobpilot.bat gets everything going; or, if disabled, just
+    # resume what was left mid-pipeline. Background thread so the API is up at once.
     def _resume():
         try:
-            log.info("Startup recovery done", extra={"stats": orch.process_pending()})
+            if settings.run_on_startup:
+                log.info("Startup cycle done", extra={"stats": orch.run_full_cycle()})
+            else:
+                log.info("Startup recovery done", extra={"stats": orch.process_pending()})
         except Exception as e:
-            log.warning(f"resume-pending on startup failed: {e}")
+            log.warning(f"startup run failed: {e}")
     threading.Thread(target=_resume, name="startup-recovery", daemon=True).start()
     yield
     # shutdown

@@ -161,7 +161,19 @@ New or replaced files are picked up automatically.
 
 ## Running
 
-Open two terminals from the project root:
+### One click
+
+Double-click **`start_jobpilot.bat`** in the project root. It starts the backend and the dashboard in minimized windows, waits until both are ready, and opens http://localhost:5173. On start-up the backend immediately runs a full cycle — applies to queued jobs, discovers new ones, and syncs Google Sheets — then repeats every 6 hours (`JOBPILOT_DISCOVERY_CRON`).
+
+| Script | What it does |
+|---|---|
+| `start_jobpilot.bat` | Start everything (safe to click again; running parts are skipped). |
+| `stop_jobpilot.bat` | Stop the backend, dashboard and browser. |
+| `autostart_jobpilot.bat` | Start JobPilot automatically at Windows login. `autostart_jobpilot.bat off` undoes it. |
+
+Set `JOBPILOT_RUN_ON_STARTUP=false` in `backend/.env` to wait for the schedule instead of running a cycle at start-up.
+
+### Separately
 
 ```powershell
 # Terminal 1 — backend (http://127.0.0.1:8000)
@@ -178,7 +190,7 @@ cd backend;  .\.venv\Scripts\python.exe -m uvicorn app.main:app --host 127.0.0.1
 cd frontend; npm run dev
 ```
 
-Then open **http://localhost:5173 → Settings**, paste your `JOBPILOT_API_KEY`, and click **Run discovery cycle**. After that the scheduler runs on its own; keep the backend terminal open.
+On first use, open **Settings** in the dashboard and paste your `JOBPILOT_API_KEY`. Keep the backend window open (minimized is fine) — automation stops when it closes.
 
 Health check: http://127.0.0.1:8000/api/health · API docs: http://127.0.0.1:8000/docs
 
