@@ -1,0 +1,192 @@
+# ============================================================================
+# JOBPILOT AI — CANDIDATE PROFILE  (source of truth for the whole system)
+# ----------------------------------------------------------------------------
+# IMPORTANT (truthfulness policy):
+#   Everything the system claims on your behalf comes from THIS file plus your
+#   real resume files in data/resumes/. The system will NEVER invent skills,
+#   dates, metrics, employers, or publications.
+#
+#   Fields marked `verified: false` are things you stated as goals/background
+#   but that the system could not independently check. BEFORE you let the
+#   system put any of them on a tailored resume, confirm them against your
+#   real resume / repositories and set `verified: true`. Anything still
+#   `verified: false` is treated as "flag for review", not as fact.
+# ============================================================================
+
+candidate:
+  name: "Ritesh Kumar"
+  email: "riteshkumar90359@gmail.com"   # companies send application confirmations here
+  phone: ""            # <-- fill in
+  location: "India"
+  city: ""             # <-- your city, e.g. "Jamshedpur" (Lever forms require one)
+  github: "https://github.com/RiteshKumar2e"
+  linkedin: "https://www.linkedin.com/in/riteshkumar-tech/"
+  website: "https://riteshkr.online"
+
+education:
+  - degree: "B.Tech, Computer Science and Engineering"
+    institution: "Arka Jain University"
+    start_year: 2022
+    end_year: 2026
+    cgpa: 8.47
+    verified: true     # stated explicitly; DO NOT let the system alter CGPA/dates
+
+experience_level:
+  bucket: "fresher"          # fresher | 0-2
+  max_years: 2
+
+# ---------------------------------------------------------------------------
+# Experience / research. Confirm each against your resume & repos, then flip
+# `verified` to true. Keep dates EXACTLY as on your real resume.
+# ---------------------------------------------------------------------------
+experience:
+  - title: "Research Intern"
+    organization: "Machine Vision & Intelligence Lab, NIT Jamshedpur"
+    start: "2025-05"         # <-- CONFIRM exact start
+    end: "present"           # <-- CONFIRM (present? or end date?)
+    summary: >
+      Computer-vision research on steel surface defects (MobileNetV2, NEU-DET,
+      feature fusion, attention modules).
+    verified: false          # <-- set true ONLY after you confirm dates & scope
+
+projects:
+  - name: "Steel surface defect classification"
+    tags: ["computer-vision", "deep-learning", "MobileNetV2", "NEU-DET",
+           "feature-fusion", "attention"]
+    repo: ""                 # <-- paste exact repo URL; system inspects it on YOUR machine
+    summary: >
+      Classification/detection experiments on steel surface defects.
+    verified: false
+  - name: "QuickFix — AI-powered complaint management system"
+    tags: ["full-stack", "AI", "backend"]
+    repo: ""                 # <-- paste exact repo URL
+    summary: "AI-powered complaint management system."
+    verified: false
+  - name: "Community AI — multilingual government scheme assistant"
+    tags: ["RAG", "LLM", "NLP", "multilingual"]
+    repo: ""                 # <-- paste exact repo URL
+    summary: "Multilingual assistant for government schemes."
+    verified: false
+
+# ---------------------------------------------------------------------------
+# Skills. These were stated in your brief. The resume engine will only surface
+# a skill on a tailored resume if it ALSO appears in one of your real resume
+# files (data/resumes/). Listing it here does not force it onto a resume.
+# ---------------------------------------------------------------------------
+skills:
+  languages:    ["Python", "SQL", "JavaScript"]
+  web:          ["FastAPI", "Node.js", "Express.js", "React", "REST APIs", "JWT", "OAuth"]
+  databases:    ["MySQL", "PostgreSQL", "MongoDB"]
+  ml_dl:        ["TensorFlow", "PyTorch", "Keras", "scikit-learn", "OpenCV",
+                 "Pandas", "MobileNetV2", "Feature Pyramid Networks",
+                 "attention mechanisms", "computer vision", "deep learning", "RAG"]
+  devops:       ["Docker", "Git"]
+
+# ---------------------------------------------------------------------------
+# Search targets
+# ---------------------------------------------------------------------------
+target_roles:
+  - "Machine Learning Engineer"
+  - "AI Engineer"
+  - "Generative AI Engineer"
+  - "Computer Vision Engineer"
+  - "Junior Research Engineer"
+  - "Research Assistant"
+  - "Research Engineer AI/ML"
+  - "Python Developer"
+  - "Backend Engineer"
+  - "Software Development Engineer I"
+  - "Junior Software Engineer"
+  - "Applied AI Engineer"
+  - "LLM Engineer"
+  - "RAG Engineer"
+  - "AI Automation Engineer"
+
+# Keywords used for matching (lowercased, matched against job descriptions)
+role_keywords:
+  - machine learning
+  - ml engineer
+  - ai engineer
+  - generative ai
+  - genai
+  - computer vision
+  - deep learning
+  - python
+  - backend
+  - fastapi
+  - llm
+  - rag
+  - research engineer
+  - applied ai
+  - sde i
+  - junior software
+
+# ---------------------------------------------------------------------------
+# Standing answers for application forms. `match` is a regex tested against
+# the question's label (case-insensitive); the first match wins. The browser
+# agent ONLY fills what is listed here or in `candidate` above — a REQUIRED
+# question with no answer stops that application at ACTION_REQUIRED and you
+# get an email with the link. Every answer here must be true.
+# ---------------------------------------------------------------------------
+application_answers:
+  - {match: "current (ctc|salary|compensation)", answer: "0 (Fresher)"}
+  - {match: "current (company|employer|organi[sz]ation)|^org$", answer: "Arka Jain University"}
+  - {match: "^degree", answer: "Bachelor"}
+  - {match: "^discipline|field of study|major", answer: "Computer Science"}
+  - {match: "graduation (year|date)|year of graduation", answer: "2026"}
+  - {match: "years of (professional |relevant |work )?experience", answer: "0"}
+  - {match: "expected (ctc|salary|compensation)|salary expectation", answer: "10-30 LPA (negotiable)"}
+  - {match: "how did you hear", answer: "Company website"}
+  # Most Greenhouse forms REQUIRE the questions below. Uncomment the ones that
+  # are TRUE for you — each one you confirm unlocks many more auto-applications.
+  # - {match: "legally authori[sz]ed to work", answer: "Yes"}
+  # - {match: "sponsorship", answer: "No"}
+  # - {match: "notice period", answer: "Immediate"}
+  # - {match: "(currently|previously) (work|been employed)|worked for .* before", answer: "No"}
+  # - {match: "willing to relocate", answer: "No"}
+
+locations:
+  preferred: ["India (onsite/hybrid)", "Remote (anywhere)"]
+  # Onsite/hybrid jobs must be located in India (always enforced).
+  # Remote jobs from any country are accepted unless the listing explicitly
+  # excludes India (see exclude_india_signals below).
+  accept_remote_anywhere: true
+  relocate: false
+
+compensation:
+  currency: "INR"
+  target_min_lpa: 10
+  target_max_lpa: 30
+  reject_if_salary_undisclosed: false   # per brief: don't reject solely on missing salary
+
+# ---------------------------------------------------------------------------
+# Hard exclusions (eligibility killers — applied SEPARATELY from match score)
+# ---------------------------------------------------------------------------
+exclude:
+  internship_only: true
+  senior_roles: true
+  requires_more_experience: true
+  unpaid: true
+  excludes_india: true
+  # Regex-ish signal phrases used by the verification agent (lowercased):
+  senior_signals: ["senior", "sr.", "staff", "principal", "lead ", "manager",
+                   "head of", "director", "architect", "10+ years", "8+ years",
+                   "7+ years", "6+ years", "5+ years"]
+  internship_signals: ["internship", "intern ", "summer intern", "co-op"]
+  exclude_india_signals: ["not open to india", "india not eligible",
+                          "us citizens only", "must be located in the us",
+                          "eu residents only", "uk residents only",
+                          "no india", "excluding india"]
+
+# ---------------------------------------------------------------------------
+# Discovery sources. You add real Greenhouse board tokens / Lever accounts of
+# companies you want to track. Examples left blank on purpose — fill them in.
+# (These are the OFFICIAL public job-board endpoints, not scraping.)
+# ---------------------------------------------------------------------------
+sources:
+  # Verified live on 2026-10-24, each with India-located openings.
+  greenhouse_boards: ["okta", "databricks", "mongodb", "zscaler", "stripe", "sigmoid",
+                      "rubrik", "gitlab", "razorpaysoftwareprivatelimited", "hackerrank",
+                      "elastic", "druva", "groww", "twilio", "coinbase", "airbnb",
+                      "samsara", "figma", "observeai"]
+  lever_accounts:    ["paytm", "meesho", "hevodata", "zeta", "cred"]

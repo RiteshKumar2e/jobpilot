@@ -1,0 +1,42 @@
+# ---- Secrets & credentials (NEVER commit) ----
+.env
+*.env
+!*.env.example
+data/google_credentials.json
+data/google_token.json
+data/browser_profile/
+**/client_secret*.json
+**/service_account*.json
+*.pem
+*.key
+
+# ---- Candidate private data ----
+data/resumes/*
+!data/resumes/.gitkeep
+data/tailored/*
+!data/tailored/.gitkeep
+data/logs/*
+!data/logs/.gitkeep
+data/jobpilot.db
+data/*.db
+data/*.sqlite3
+
+# ---- Python ----
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.env.local
+.pytest_cache/
+.mypy_cache/
+*.egg-info/
+
+# ---- Node / frontend ----
+node_modules/
+frontend/dist/
+frontend/.vite/
+npm-debug.log*
+
+# ---- OS ----
+.DS_Store
+Thumbs.db

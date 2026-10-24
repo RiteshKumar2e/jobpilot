@@ -1,0 +1,42 @@
+# ---- Core web / API ----
+fastapi==0.115.5
+uvicorn[standard]==0.32.1
+pydantic==2.10.3
+pydantic-settings==2.6.1
+
+# ---- Database ----
+SQLAlchemy==2.0.36
+alembic==1.14.0           # optional migrations (Postgres path)
+
+# ---- HTTP / retries ----
+httpx==0.28.1
+tenacity==9.0.0           # retry w/ exponential backoff
+
+# ---- Scheduling ----
+APScheduler==3.11.0
+
+# ---- Config / files ----
+PyYAML==6.0.2
+python-multipart==0.0.17  # file uploads in FastAPI
+
+# ---- Resume parsing ----
+pypdf==5.1.0              # read PDF resumes
+python-docx==1.1.2        # read/write DOCX
+reportlab==4.2.5          # generate tailored PDF resumes
+
+# ---- LLM providers ----
+# Groq / Gemini (free tiers) are called via httpx above; no SDK needed.
+
+# ---- Google Sheets (official API) ----
+google-api-python-client==2.154.0
+google-auth==2.36.0
+google-auth-oauthlib==1.2.1
+google-auth-httplib2==0.2.0
+
+# ---- Browser automation (draft-only by default) ----
+playwright==1.49.0        # after install run: playwright install chromium
+
+# ---- Testing ----
+pytest==8.3.4
+pytest-asyncio==0.24.0
+respx==0.22.0             # mock httpx for discovery tests

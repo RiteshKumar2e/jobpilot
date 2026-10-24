@@ -1,0 +1,20 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><title>Test Apply Form — Acme CV Engineer</title></head>
+<body>
+  <h1>Apply: Computer Vision Engineer at Acme</h1>
+  <form id="apply" onsubmit="onSubmit(event)">
+    <label>Full name <input type="text" name="full_name" required></label><br>
+    <label>Email <input type="email" name="email" required></label><br>
+    <label>Phone <input type="tel" name="phone"></label><br>
+    <label>LinkedIn <input type="text" name="linkedin"></label><br>
+    <label>GitHub <input type="text" name="github"></label><br>
+    <label>Resume <input type="file" name="resume"></label><br>
+    <button type="submit">Submit Application</button>
+  </form>
+  <div id="result" style="display:none">Thank you for applying — application received. Reference: TEST-12345</div>
+  <script>
+    function onSubmit(e){e.preventDefault();
+      document.getElementById('apply').style.display='none';
+      document.getElementById('result').style.display='block';}
+  </script>
+</body></html>
