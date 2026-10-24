@@ -4,6 +4,7 @@
 !*.env.example
 data/google_credentials.json
 data/google_token.json
+data/google_sheet_id.txt
 data/browser_profile/
 **/client_secret*.json
 **/service_account*.json
@@ -20,12 +21,16 @@ data/logs/*
 data/jobpilot.db
 data/*.db
 data/*.sqlite3
+data/*.db-shm
+data/*.db-wal
 
 # ---- Python ----
 __pycache__/
 *.py[cod]
 .venv/
 venv/
+# portable Python runtime (run_backend.bat sets it up locally)
+backend/.python/
 .env.local
 .pytest_cache/
 .mypy_cache/
