@@ -163,7 +163,7 @@ New or replaced files are picked up automatically.
 
 ### One click
 
-Double-click **`start_jobpilot.bat`** in the project root. It starts the backend and the dashboard in minimized windows, waits until both are ready, and opens http://localhost:5173. On start-up the backend immediately runs a full cycle — applies to queued jobs, discovers new ones, and syncs Google Sheets — then repeats every 6 hours (`JOBPILOT_DISCOVERY_CRON`).
+Double-click **`start_jobpilot.bat`** in the project root. It starts the backend and the dashboard in minimized windows, waits until both are ready, and opens http://localhost:5177. On start-up the backend immediately runs a full cycle — applies to queued jobs, discovers new ones, and syncs Google Sheets — then repeats every 6 hours (`JOBPILOT_DISCOVERY_CRON`).
 
 | Script | What it does |
 |---|---|
@@ -179,7 +179,7 @@ Set `JOBPILOT_RUN_ON_STARTUP=false` in `backend/.env` to wait for the schedule i
 # Terminal 1 — backend (http://127.0.0.1:8077)
 .\run_backend.bat
 
-# Terminal 2 — dashboard (http://localhost:5173)
+# Terminal 2 — dashboard (http://localhost:5177)
 .\run_frontend.bat
 ```
 

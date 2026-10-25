@@ -7,5 +7,5 @@ if not exist "node_modules" (
   call npm install
 )
 
-echo [JobPilot] Starting dashboard on http://localhost:5173
+echo [JobPilot] Starting dashboard on http://localhost:5177
 call npm run dev

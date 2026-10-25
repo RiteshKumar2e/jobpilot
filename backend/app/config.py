@@ -43,7 +43,7 @@ class Settings(BaseSettings):
     host: str = "127.0.0.1"
     port: int = 8077
     api_key: str = "change-me"
-    cors_origins: str = "http://localhost:5173,http://127.0.0.1:5173"
+    cors_origins: str = "http://localhost:5177,http://127.0.0.1:5177"
 
     # DB
     db_url: str = f"sqlite:///{(PROJECT_DIR / 'data' / 'jobpilot.db')}"

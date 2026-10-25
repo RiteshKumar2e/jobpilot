@@ -48,8 +48,8 @@ timeout /t 2 /nobreak >nul
 goto wait_frontend
 :frontend_up
 
-if /i not "%~1"=="silent" start "" http://localhost:5173
-echo [JobPilot] All set. Dashboard: http://localhost:5173
+if /i not "%~1"=="silent" start "" http://localhost:5177
+echo [JobPilot] All set. Dashboard: http://localhost:5177
 timeout /t 5 >nul
 exit /b 0
 
@@ -59,7 +59,7 @@ curl.exe -s -m 3 http://127.0.0.1:8077/api/health | findstr /c:"jobpilot" >nul
 exit /b %errorlevel%
 
 :is_jobpilot_dashboard
-curl.exe -s -m 3 http://localhost:5173 | findstr /c:"JobPilot" >nul
+curl.exe -s -m 3 http://localhost:5177 | findstr /c:"JobPilot" >nul
 exit /b %errorlevel%
 
 :failed_backend
