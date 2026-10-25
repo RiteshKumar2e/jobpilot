@@ -28,5 +28,5 @@ if not exist ".env" (
   copy .env.example .env
 )
 
-echo [JobPilot] Starting API on http://127.0.0.1:8000  (restart after editing .env; profile edits apply automatically)
-.venv\Scripts\python.exe -m uvicorn app.main:app --host 127.0.0.1 --port 8000
+echo [JobPilot] Starting API on http://127.0.0.1:8077  (restart after editing .env; profile edits apply automatically)
+.venv\Scripts\python.exe -m uvicorn app.main:app --host 127.0.0.1 --port 8077

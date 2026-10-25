@@ -41,7 +41,7 @@ class Settings(BaseSettings):
     # App
     env: str = "dev"
     host: str = "127.0.0.1"
-    port: int = 8000
+    port: int = 8077
     api_key: str = "change-me"
     cors_origins: str = "http://localhost:5173,http://127.0.0.1:5173"
 

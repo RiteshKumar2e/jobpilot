@@ -27,7 +27,8 @@ router = APIRouter()
 # ---------- system / health ------------------------------------------------ #
 @router.get("/api/health")
 def health():
-    return {"status": "ok"}
+    # "app" lets the launcher tell JobPilot apart from other apps on the same machine
+    return {"status": "ok", "app": "jobpilot"}
 
 
 @router.get("/api/system")

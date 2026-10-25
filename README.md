@@ -176,7 +176,7 @@ Set `JOBPILOT_RUN_ON_STARTUP=false` in `backend/.env` to wait for the schedule i
 ### Separately
 
 ```powershell
-# Terminal 1 — backend (http://127.0.0.1:8000)
+# Terminal 1 — backend (http://127.0.0.1:8077)
 .\run_backend.bat
 
 # Terminal 2 — dashboard (http://localhost:5173)
@@ -192,7 +192,7 @@ cd frontend; npm run dev
 
 On first use, open **Settings** in the dashboard and paste your `JOBPILOT_API_KEY`. Keep the backend window open (minimized is fine) — automation stops when it closes.
 
-Health check: http://127.0.0.1:8000/api/health · API docs: http://127.0.0.1:8000/docs
+Health check: http://127.0.0.1:8077/api/health · API docs: http://127.0.0.1:8077/docs
 
 ---
 
@@ -301,7 +301,7 @@ jobpilot/
 
 | Symptom | Cause / fix |
 |---|---|
-| Dashboard shows **500** or `ECONNREFUSED 127.0.0.1:8000` | The backend isn't running. Start it and keep its terminal open. |
+| Dashboard shows **500** or `ECONNREFUSED 127.0.0.1:8077` | The backend isn't running. Start it and keep its terminal open. |
 | **401** on actions | The API key in Settings doesn't match `JOBPILOT_API_KEY`. |
 | Jobs stuck at `ACTION_REQUIRED` | A required question has no answer — fill `phone`/`city` or uncomment the matching `application_answers`. |
 | "Daily cap reached" | `JOBPILOT_DAILY_AUTOSUBMIT_LIMIT` hit; the rest continue tomorrow. |
