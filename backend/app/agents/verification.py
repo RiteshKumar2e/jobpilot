@@ -16,8 +16,37 @@ from ..models import EligibilityStatus
 from ..schemas import RawJob, VerificationResult
 from .base import is_india_location
 
-_YEARS_RE = re.compile(r"(\d+)\s*\+?\s*(?:-\s*\d+\s*)?years?", re.I)
-_MIN_YEARS_RE = re.compile(r"(?:minimum|at least|min\.?)\s*(\d+)\s*\+?\s*years?", re.I)
+# "3+ years", "1-3 yrs", "1 to 3 years" (a range counts by its lower bound)
+_YEARS_RE = re.compile(r"(\d+)\s*\+?\s*(?:(?:-|–|to)\s*\d+\s*)?(?:years?|yrs?)\b", re.I)
+_MIN_YEARS_RE = re.compile(r"(?:minimum|at least|min\.?)\s*(\d+)\s*\+?\s*(?:years?|yrs?)\b", re.I)
+
+# Level markers in a title that mean "not entry level": SDE II, Engineer 3, L2,
+# Intermediate, Team Leader ...
+_LEVEL_RE = re.compile(
+    r"\b(?:ii|iii|iv|l[2-9]|level\s*[2-9]|intermediate|mid[- ]level|team lead(?:er)?)\b"
+    r"|\b(?:engineer|developer|sde|swe|scientist)[\s-]*[2-9]\b")
+
+# A target role must look like one of these (engineering / ML / research)...
+_DEFAULT_TITLE_MUST_MATCH = ["engineer", "engineering", "developer", "sde", "swe",
+                             "scientist", "programmer", "machine learning", "ml", "ai",
+                             "research", "software", "backend", "full stack", "fullstack"]
+# ...and must not be one of these (support, sales, ops, design, analyst ...).
+_DEFAULT_NON_TARGET_TITLES = ["support", "sales", "account", "operations", "people",
+                              "ux", "designer", "administrator", "customer",
+                              "technical services", "pricing", "monetization", "risk",
+                              "finance", "analyst", "electrical", "mechanical", "recruit",
+                              "marketing", "legal", "product manag", "hardware"]
+
+# A remote location that is open to candidates in India.
+_GLOBAL_REMOTE_RE = re.compile(
+    r"\b(?:anywhere|worldwide|global|globally|international|apac|asia|asia[- ]pacific)\b")
+
+
+def _has_word(text: str, phrase: str) -> bool:
+    """Whole-word match ("lead" matches "Technical Lead", not "leading")."""
+    s = phrase.strip().lower()
+    tail = r"\b" if s[-1:].isalnum() else ""
+    return bool(s) and re.search(rf"\b{re.escape(s)}{tail}", text) is not None
 
 
 class VerificationAgent:
@@ -36,7 +65,8 @@ class VerificationAgent:
         if self.ex.get("internship_only", True):
             if any(sig in blob for sig in self.ex.get("internship_signals", [])):
                 # but allow "internship" mentioned only as a perk/alongside full-time
-                if "intern" in title_l or "internship" in title_l:
+                if any(_has_word(title_l, w) for w in
+                       ("intern", "internship", "co-op", "apprentice", "apprenticeship")):
                     reasons.append("Internship-only role (title indicates intern).")
                     return VerificationResult(status=EligibilityStatus.REJECTED.value, reasons=reasons)
                 reasons.append("Mentions internship; needs human check it's not intern-only.")
@@ -44,12 +74,24 @@ class VerificationAgent:
         # 2) Seniority -> REJECT when clearly senior
         if self.ex.get("senior_roles", True):
             for sig in self.ex.get("senior_signals", []):
-                # word-boundary match: "lead " used to miss "Technical Lead" at end of title
-                s = sig.strip()
-                tail = r"\b" if s[-1:].isalnum() else ""
-                if s and re.search(rf"\b{re.escape(s)}{tail}", title_l):
+                if _has_word(title_l, sig):
                     reasons.append(f"Seniority signal in title: '{sig.strip()}'.")
                     return VerificationResult(status=EligibilityStatus.REJECTED.value, reasons=reasons)
+            m = _LEVEL_RE.search(title_l)
+            if m:
+                reasons.append(f"Title indicates a non-entry level ('{m.group(0).strip()}').")
+                return VerificationResult(status=EligibilityStatus.REJECTED.value, reasons=reasons)
+
+        # 2b) Role relevance: engineering / ML / research — not support, sales,
+        # operations, design or analyst work
+        must = self.ex.get("title_must_match") or _DEFAULT_TITLE_MUST_MATCH
+        if not any(_has_word(title_l, w) for w in must):
+            reasons.append("Not a target role (no engineering/ML/research keyword in title).")
+            return VerificationResult(status=EligibilityStatus.REJECTED.value, reasons=reasons)
+        for w in self.ex.get("non_target_title_signals") or _DEFAULT_NON_TARGET_TITLES:
+            if _has_word(title_l, w):
+                reasons.append(f"Not a target role ('{w.strip()}' in title).")
+                return VerificationResult(status=EligibilityStatus.REJECTED.value, reasons=reasons)
 
         # 3) Experience requirement vs fresher cap
         over, why = self._exceeds_experience(blob, max_years)
@@ -108,16 +150,26 @@ class VerificationAgent:
         return False, ""
 
     def _location_ok(self, job: RawJob) -> Tuple[EligibilityStatus, str]:
-        """Onsite/hybrid must be in India; remote is accepted from anywhere
-        (explicit India exclusions are already rejected in step 4)."""
+        """Onsite/hybrid must be in India. Remote counts only when it's open to
+        someone in India: listed for India, or not tied to a country ("Remote",
+        "Remote - Anywhere", "Remote, APAC"). "Remote - Spain" / "Remote, US"
+        hire residents of that country only, so applying from India is wasted."""
         loc = job.location or ""
         wm = (job.work_mode or "").lower()
-        if is_india_location(loc):
+        entries = [e.strip() for e in re.split(r"[;|]", loc) if e.strip()]
+        if any(is_india_location(e) for e in entries):
             return EligibilityStatus.VERIFIED, ""
-        if wm == "remote" or "remote" in loc.lower():
-            if self.profile.locations.get("accept_remote_anywhere", True):
-                return EligibilityStatus.VERIFIED, f"Remote role ({loc or 'no location given'}) — remote from anywhere accepted."
-            return EligibilityStatus.REJECTED, "Remote outside India not accepted per profile."
-        if not loc:
+        remote = wm == "remote" or "remote" in loc.lower()
+        if not entries:
+            if remote:
+                return EligibilityStatus.VERIFIED, "Remote, no location restriction."
             return EligibilityStatus.NEEDS_REVIEW, "No location given — confirm it's in India or remote."
+        if remote:
+            if not self.profile.locations.get("accept_remote_anywhere", True):
+                return EligibilityStatus.REJECTED, "Remote outside India not accepted per profile."
+            for e in entries:
+                rest = re.sub(r"\bremote\b|[-,()–:/]", " ", e.lower()).strip()
+                if not rest or _GLOBAL_REMOTE_RE.search(rest):
+                    return EligibilityStatus.VERIFIED, f"Remote, open globally ({loc})."
+            return EligibilityStatus.REJECTED, f"Remote but limited to '{loc}' — not open to candidates in India."
         return EligibilityStatus.REJECTED, f"{(wm or 'onsite').capitalize()} in '{loc}' — onsite/hybrid roles must be in India."

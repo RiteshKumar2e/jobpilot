@@ -119,6 +119,7 @@ class Orchestrator:
                 log.info("Automation paused; skipping cycle.")
                 return {**stats, "paused": True}
 
+            stats["reverified"] = self._reverify_open(db)
             raw = self._discover(db, run_id, discover_raw)
             stats["discovered"] = len(raw)
             new_or_updated = self._ingest_dedup(db, raw)
@@ -163,6 +164,7 @@ class Orchestrator:
         try:
             if self._paused(db):
                 return {**stats, "paused": True}
+            stats["reverified"] = self._reverify_open(db)
             for job in self._pending_jobs(db):
                 self._process_job(db, job, stats)
                 stats["resumed"] += 1
@@ -171,6 +173,39 @@ class Orchestrator:
             return stats
         finally:
             db.close()
+
+    def _reverify_open(self, db) -> int:
+        """Re-run eligibility on every job not applied to yet, so rule changes
+        (and profile edits) apply to old listings too — not only new ones.
+        Returns how many changed status."""
+        if "verification" not in self.enabled:
+            return 0
+        open_statuses = [ApplicationStatus.NONE.value, ApplicationStatus.DRAFTED.value,
+                         ApplicationStatus.READY_FOR_REVIEW.value,
+                         ApplicationStatus.ACTION_REQUIRED.value]
+        max_years = self.profile.raw().get("experience_level", {}).get("max_years", 2)
+        changed = 0
+        for job in db.scalars(select(Job).where(Job.application_status.in_(open_statuses))):
+            vr = self.verify.verify(RawJob(**_job_to_rawdict(job)), max_years=max_years)
+            if vr.status == job.eligibility_status and vr.reasons == job.eligibility_reasons:
+                continue
+            was_rejected = job.eligibility_status == EligibilityStatus.REJECTED.value
+            job.eligibility_status = vr.status
+            job.eligibility_reasons = vr.reasons
+            job.last_checked = datetime.now(timezone.utc)
+            if vr.status == EligibilityStatus.REJECTED.value:
+                job.pipeline_stage = PipelineStage.DONE.value
+                job.next_action = "Rejected at verification."
+            elif was_rejected:
+                # rules loosened: send it back through scoring
+                job.pipeline_stage = PipelineStage.VERIFIED.value
+                job.next_action = ""
+            changed += 1
+        db.commit()
+        if changed:
+            log_event(db, level="info", agent="verification",
+                      message=f"Re-verified open jobs: {changed} changed status")
+        return changed
 
     def _pending_jobs(self, db) -> List[Job]:
         # Best matches first, so the daily cap is spent on them.
@@ -457,12 +492,18 @@ class Orchestrator:
         self.sheets_safe(self.sheets.ensure_spreadsheet)
         # Only jobs worth tracking (shortlisted or with an application); syncing
         # thousands of rejected listings would blow the Sheets API quota.
+        # Tracked: eligible jobs, shortlisted ones (so a row turns REJECTED
+        # instead of going stale), and anything with an application.
         jobs = db.scalars(select(Job).where(
+            Job.eligibility_status.in_([EligibilityStatus.VERIFIED.value,
+                                        EligibilityStatus.NEEDS_REVIEW.value]) |
             (Job.match_score >= SHORTLIST_THRESHOLD) |
-            (Job.application_status != ApplicationStatus.NONE.value))).all()
-        for j in jobs:
-            self.sheets_safe(lambda j=j: self.sheets.upsert_job(j))
+            (Job.application_status != ApplicationStatus.NONE.value))
+            .order_by(Job.match_score.desc().nullslast())).all()
+        res = self.sheets_safe(lambda: self.sheets.sync_jobs(jobs))
         self.sheets_safe(lambda: self.sheets.update_dashboard(compute_stats(db)))
+        if res:
+            log.info("Sheets synced", extra=res)
 
     def sheets_safe(self, fn):
         try:

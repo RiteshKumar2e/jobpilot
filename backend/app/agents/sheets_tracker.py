@@ -25,7 +25,7 @@ PIPELINE_HEADERS = [
     "Salary Range", "Eligibility Status", "Match Score", "Matching Skills",
     "Missing Skills", "Resume Version", "Tailored Resume Path", "Cover Letter Path",
     "Application Status", "Submission Date", "Confirmation Reference",
-    "Follow-up Date", "Last Checked", "Next Action", "Notes",
+    "Follow-up Date", "Last Checked", "Next Action", "Notes", "Eligibility Reasons",
 ]
 HISTORY_HEADERS = ["Timestamp", "Job ID", "Company", "Job Title", "Attempt",
                    "Result", "Error", "Detail"]
@@ -141,6 +141,39 @@ class SheetsAgent:
                 row[19] = existing[19] if len(existing) > 19 else row[19]
         self._write_row("Job Pipeline", rownum, row)
 
+    def sync_jobs(self, jobs) -> dict:
+        """Upsert many jobs in 3 API calls (one read, one batch update, one
+        append) instead of 2-3 calls per job, which ran into the Sheets quota
+        (~60 requests/min) once more than a few dozen jobs were tracked."""
+        if not self._enabled or not jobs:
+            return {"updated": 0, "added": 0}
+        res = self._svc.spreadsheets().values().get(
+            spreadsheetId=self._sheet_id, range="Job Pipeline!A2:Z100000").execute()
+        existing = {r[0]: (i, r) for i, r in enumerate(res.get("values", []), start=2) if r}
+        updates, appends = [], []
+        for job in jobs:
+            row = self._job_to_row(job)
+            if job.job_id in existing:
+                rownum, old = existing[job.job_id]
+                # never downgrade a stronger application status written earlier
+                if len(old) > 18 and self._weaker(row[18], old[18]):
+                    row[18] = old[18]
+                    row[19] = old[19] if len(old) > 19 else row[19]
+                updates.append({"range": f"Job Pipeline!A{rownum}", "values": [row]})
+            else:
+                appends.append(row)
+        # keep the header current (columns can be added over time)
+        updates.append({"range": "Job Pipeline!A1", "values": [PIPELINE_HEADERS]})
+        self._svc.spreadsheets().values().batchUpdate(
+            spreadsheetId=self._sheet_id,
+            body={"valueInputOption": "RAW", "data": updates}).execute()
+        if appends:
+            self._svc.spreadsheets().values().append(
+                spreadsheetId=self._sheet_id, range="Job Pipeline!A1",
+                valueInputOption="RAW", insertDataOption="INSERT_ROWS",
+                body={"values": appends}).execute()
+        return {"updated": len(updates) - 1, "added": len(appends)}
+
     def record_attempt(self, job, attempt_no, result, error="", detail=None) -> None:
         if not self._enabled:
             return
@@ -182,6 +215,7 @@ class SheetsAgent:
             job.cover_letter_path, job.application_status, job.submission_date,
             job.confirmation_reference, job.follow_up_date,
             str(job.last_checked or "")[:19], job.next_action, (job.notes or "")[:500],
+            " | ".join(job.eligibility_reasons or [])[:500],
         ]
 
     def _ensure_tabs(self):

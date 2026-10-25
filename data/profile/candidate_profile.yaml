@@ -188,5 +188,5 @@ sources:
   greenhouse_boards: ["okta", "databricks", "mongodb", "zscaler", "stripe", "sigmoid",
                       "rubrik", "gitlab", "razorpaysoftwareprivatelimited", "hackerrank",
                       "elastic", "druva", "groww", "twilio", "coinbase", "airbnb",
-                      "samsara", "figma", "observeai"]
-  lever_accounts:    ["paytm", "meesho", "hevodata", "zeta", "cred"]
+                      "samsara", "figma", "observeai", "devrev"]
+  lever_accounts:    ["paytm", "meesho", "hevodata", "zeta", "cred", "mindtickle", "fampay"]
