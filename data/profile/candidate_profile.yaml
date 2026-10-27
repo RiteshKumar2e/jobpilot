@@ -136,14 +136,18 @@ application_answers:
   - {match: "graduation (year|date)|year of graduation", answer: "2026"}
   - {match: "years of (professional |relevant |work )?experience", answer: "0"}
   - {match: "expected (ctc|salary|compensation)|salary expectation", answer: "10-30 LPA (negotiable)"}
-  - {match: "how did you hear", answer: "Company website"}
-  # Most Greenhouse forms REQUIRE the questions below. Uncomment the ones that
-  # are TRUE for you — each one you confirm unlocks many more auto-applications.
-  # - {match: "legally authori[sz]ed to work", answer: "Yes"}
-  # - {match: "sponsorship", answer: "No"}
-  # - {match: "notice period", answer: "Immediate"}
+  - {match: "how did you (hear|learn|find|come)", answer: "Company website"}
+  # Confirmed by you (2026-10-27):
+  - {match: "sponsor", answer: "No"}
+  - {match: "authori[sz](ed|ation) to work|(legal|legally) (right|eligible|permitted)|right to work|work permit", answer: "Yes"}
+  - {match: "notice period|when can you (start|join)|earliest (start|joining)", answer: "Immediate"}
+  - {match: "relocat|work from (the )?office|in[- ]office|on[- ]?site|days? (a week )?(in|from) (the )?office|commut", answer: "Yes"}
+  # Not confirmed yet — uncomment only if true:
   # - {match: "(currently|previously) (work|been employed)|worked for .* before", answer: "No"}
-  # - {match: "willing to relocate", answer: "No"}
+
+# Tick required "I acknowledge / I have read the privacy notice / I consent"
+# boxes (only required ones — never marketing opt-ins).
+auto_acknowledge_privacy: true
 
 locations:
   preferred: ["India (onsite/hybrid)", "Remote (anywhere)"]
@@ -151,7 +155,7 @@ locations:
   # Remote jobs from any country are accepted unless the listing explicitly
   # excludes India (see exclude_india_signals below).
   accept_remote_anywhere: true
-  relocate: false
+  relocate: true
 
 compensation:
   currency: "INR"

@@ -473,6 +473,7 @@ class Orchestrator:
             job.next_action = (outcome.error or "")[:290]
             self._needs_you.append({"title": job.title, "company": job.company,
                                     "why": outcome.error or outcome.status,
+                                    "missing": outcome.detail.get("missing") or [],
                                     "url": outcome.detail.get("url") or job.job_url})
         db.commit()
         if "notifier" in self.enabled and outcome.status in (

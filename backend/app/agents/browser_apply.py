@@ -38,6 +38,12 @@ _WALL_SIGNALS = ["verify you are human", "are you a robot", "sign in to continue
                  "log in to apply", "one-time password", "enter the otp",
                  "two-factor", "security check"]
 
+# Required privacy / data-processing acknowledgements (profile: auto_acknowledge_privacy)
+_ACK_RE = re.compile(r"acknowledg|privacy (notice|policy|statement)|i (have read|consent|agree)"
+                     r"|consent to (the )?(processing|collection)|data protection", re.I)
+_ACK_OPTION_RE = re.compile(r"^\s*(yes|i (acknowledge|agree|consent|accept|have read)"
+                            r"|acknowledge|agree|accept)", re.I)
+
 _CONFIRM_TEXT = ["thank you for applying", "application received", "application submitted",
                  "successfully submitted", "we received your application",
                  "thanks for applying", "we've received your application"]
@@ -314,10 +320,17 @@ class BrowserApplyAgent:
         return False
 
     def _fill(self, page, rules, detail):
+        ack = bool(self.profile.raw().get("auto_acknowledge_privacy"))
         for f in page.evaluate(_SCAN_JS):
+            keys = [f["label"], f["name"], f["id"]]
+            # Required "I acknowledge / I have read the privacy notice" questions,
+            # when you've allowed it. Optional ones (newsletters) are left alone.
+            if ack and f["required"] and any(k and _ACK_RE.search(k) for k in keys):
+                if self._acknowledge(page, f):
+                    detail["filled"].append(f["label"] or f["name"] or f["id"])
+                    continue
             if f["value"] or f["type"] in ("checkbox", "radio"):
                 continue
-            keys = [f["label"], f["name"], f["id"]]
             value = next((v for rx, v in rules if any(k and rx.search(k) for k in keys)), "")
             if not value:
                 continue
@@ -332,6 +345,37 @@ class BrowserApplyAgent:
                 detail["filled"].append(f["label"] or f["name"] or f["id"])
             except Exception:
                 detail["skipped"].append(f["label"] or f["name"] or f["id"])
+
+    def _acknowledge(self, page, f) -> bool:
+        """Tick the box, or pick the "I acknowledge"/"Yes" option."""
+        loc = page.locator(f"[data-jp='{f['jp']}']").first
+        try:
+            if f["type"] == "checkbox":
+                loc.check(timeout=3000)
+                return True
+            if f["value"] or f["type"] == "radio":
+                return False
+            if f["tag"] == "select":
+                opts = loc.evaluate("s => [...s.options].map(o => o.label)")
+                pick = next((o for o in opts if _ACK_OPTION_RE.search(o)), None)
+                if pick:
+                    loc.select_option(label=pick, timeout=3000)
+                    return True
+                return False
+            if f["combo"]:
+                loc.click(timeout=3000)
+                page.wait_for_timeout(800)
+                opts = page.locator("[role='option']:visible")
+                texts = opts.all_inner_texts()
+                idx = next((i for i, t in enumerate(texts) if _ACK_OPTION_RE.search(t)), None)
+                if idx is None:
+                    loc.press("Escape")
+                    return False
+                opts.nth(idx).click(timeout=3000)
+                return True
+        except Exception:
+            return False
+        return False
 
     @staticmethod
     def _pick_option(page, loc, value):

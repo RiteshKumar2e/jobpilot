@@ -70,6 +70,10 @@ class NotifierAgent:
             f"Reference: {outcome.detail.get('reference') or '-'}",
             f"Link:      {job.job_url}",
             "",
+            *([] if confirmed else [
+                "No confirmation page was seen. If you got an email with a security",
+                "code from the company / Greenhouse, open the link above and enter it",
+                "— the application is not complete until you do.", ""]),
             "Sent by JobPilot AI.",
         ])
         sent = self.send(subject, body)
@@ -82,8 +86,11 @@ class NotifierAgent:
         lines = [f"{len(needs_you)} application(s) were filled but need you to finish:", ""]
         for i, j in enumerate(needs_you, 1):
             lines += [f"{i}. {j['title']} @ {j['company']}",
-                      f"   Why:  {j['why']}",
-                      f"   Open: {j['url']}", ""]
+                      f"   Why:  {j['why']}"]
+            if j.get("missing"):
+                lines.append("   Fill these:")
+                lines += [f"     - {m}" for m in j["missing"]]
+            lines += [f"   Open: {j['url']}", ""]
         lines.append("Sent by JobPilot AI.")
         sent = self.send(f"JobPilot: {len(needs_you)} application(s) need you", "\n".join(lines))
         log_event(db, level="info", agent=self.name,
