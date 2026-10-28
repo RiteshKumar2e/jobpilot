@@ -113,6 +113,19 @@ input, select, textarea {
 .chip.SUBMISSION_UNVERIFIED { background: rgba(var(--warn-rgb),.18); color: var(--warn); }
 .chip.CLOSED, .chip.EXPIRED { background: var(--chip); color: var(--muted); }
 
+.qa { padding: 10px 0; border-bottom: 1px solid var(--border); }
+.qa:last-child { border-bottom: none; }
+.section { border-top: 1px solid var(--border); padding: 10px 0; }
+.section-h { background: none; border: none; color: var(--text); font-weight: 700; font-size: 14px;
+  cursor: pointer; padding: 0; text-align: left; width: 100%; }
+.chip.INTERVIEW_INVITE, .chip.INTERVIEW_BOOKED, .chip.INTERVIEW_DONE, .chip.OFFER, .chip.RECRUITER_REPLY
+  { background: rgba(var(--good-rgb),.18); color: var(--good); }
+.chip.ASSESSMENT { background: rgba(var(--warn-rgb),.18); color: var(--warn); }
+.chip.REJECTED_BY_COMPANY { background: rgba(var(--bad-rgb),.18); color: var(--bad); }
+code { background: var(--panel2); padding: 1px 5px; border-radius: 4px; font-size: 12px; }
+textarea { max-width: 100%; }
+.drawer select, .drawer input { max-width: 100%; }
+
 /* ---- phones: sidebar becomes a top bar; only tables scroll sideways ---- */
 @media (max-width: 760px) {
   .app { flex-direction: column; }

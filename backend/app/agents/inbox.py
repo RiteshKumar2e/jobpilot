@@ -109,6 +109,11 @@ def _body_text(msg) -> str:
 
 def classify(subject: str, body: str, sender: str) -> str:
     text = f"{subject}\n{body[:4000]}"
+    rules = dict(_RULES)
+    # "Thank you for applying" in the SUBJECT is a confirmation, even when the
+    # body mentions a future assessment/interview — unless it's a definite no.
+    if rules["application_received"].search(subject) and not rules["rejection"].search(body[:4000]):
+        return "application_received"
     for cat, rx in _RULES:
         if rx.search(text):
             return cat
@@ -297,13 +302,11 @@ class InboxAgent:
             # The company's own confirmation is real evidence an application exists —
             # whether we submitted it or you did after a handoff. Marking it confirmed
             # and DONE is what stops JobPilot from ever applying to it a second time.
-            was = job.application_status
             job.application_status = ApplicationStatus.SUBMITTED_CONFIRMED.value
             job.confirmation_reference = job.confirmation_reference or "Confirmation email received"
             job.submission_date = job.submission_date or datetime.now(timezone.utc).isoformat()
             job.pipeline_stage = PipelineStage.DONE.value
-            if was != ApplicationStatus.SUBMISSION_UNVERIFIED.value:
-                job.next_action = "Applied (confirmation email received)."
+            job.next_action = "Applied (confirmation email received)."
             stats["confirmed"] += 1
         new = OUTCOME_FOR.get(cat)
         if new and OUTCOME_RANK.get(new, 0) > OUTCOME_RANK.get(job.outcome or "", 0):
@@ -317,7 +320,7 @@ class InboxAgent:
                                 job.job_url)
         elif cat == "assessment":
             job.next_action = "Assessment received — note the deadline (Inbox)."
-        elif cat == "verification_code":
+        elif cat == "verification_code" and                 job.application_status != ApplicationStatus.SUBMITTED_CONFIRMED.value:
             job.next_action = "Enter the emailed security code to finish this application."
         elif cat == "rejection":
             job.next_action = "Rejected by the company."

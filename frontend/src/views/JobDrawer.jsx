@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react'
 import { api } from '../api.js'
+import JobCoach from './JobCoach.jsx'
 
 export default function JobDrawer({ jobId, onClose }) {
   const [job, setJob] = useState(null)
@@ -105,6 +106,8 @@ export default function JobDrawer({ jobId, onClose }) {
           <button className="btn bad" disabled={busy} onClick={reject}>Reject</button>
         </div>
         {msg && <div className="banner auto" style={{ marginTop: 12 }}>{msg}</div>}
+
+        <JobCoach job={job} reload={load} />
       </div>
     </>
   )

@@ -7,10 +7,16 @@ import Settings from './views/Settings.jsx'
 import Sources from './views/Sources.jsx'
 import Companies from './views/Companies.jsx'
 import Monitoring from './views/Monitoring.jsx'
+import AnswerBank from './views/AnswerBank.jsx'
+import Inbox from './views/Inbox.jsx'
+import Coach from './views/Coach.jsx'
 
 const NAV = [
   ['overview', 'Overview'],
   ['jobs', 'Jobs'],
+  ['answers', 'Answer Bank'],
+  ['inbox', 'Inbox'],
+  ['coach', 'Coach'],
   ['sources', 'Sources'],
   ['companies', 'Companies'],
   ['monitoring', 'Monitoring'],
@@ -71,6 +77,9 @@ export default function App() {
 
         {view === 'overview' && <Overview />}
         {view === 'jobs' && <Jobs />}
+        {view === 'answers' && <AnswerBank />}
+        {view === 'inbox' && <Inbox />}
+        {view === 'coach' && <Coach />}
         {view === 'sources' && <Sources />}
         {view === 'companies' && <Companies />}
         {view === 'monitoring' && <Monitoring />}

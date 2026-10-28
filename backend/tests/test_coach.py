@@ -147,6 +147,10 @@ def test_inbox_real_world_cases(profile):
     assert classify("Thank you for applying to Observe.AI",
                     "We'll review your qualifications. If you are not selected for this "
                     "position, keep an eye on our jobs page.", "x@greenhouse-mail.io") == "application_received"
+    assert classify("Thank you for applying to Acme",
+                    "Next, you may be asked to complete an online assessment.", "x@y.com") == "application_received"
+    assert classify("Thank you for applying to Acme", "Unfortunately we won't proceed.",
+                    "x@y.com") == "rejection"
     assert classify("Update", "After careful review, we have decided not to move forward with "
                     "your application.", "x@y.com") == "rejection"
     db = SessionLocal()

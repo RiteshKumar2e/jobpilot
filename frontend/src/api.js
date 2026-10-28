@@ -60,4 +60,29 @@ export const api = {
   importJob: (body) => req('/api/jobs/import', { method: 'POST', body: JSON.stringify(body) }),
   portalLinks: (q) => req('/api/portals/links' + (q ? `?q=${encodeURIComponent(q)}` : '')),
   monitoring: () => req('/api/monitoring'),
+  // answer bank / inbox / coach
+  answers: () => req('/api/answers'),
+  saveAnswer: (question, answer, pattern = '') =>
+    req('/api/answers', { method: 'POST', body: JSON.stringify({ question, answer, pattern }) }),
+  inbox: (category = '', includeHandled = false) =>
+    req(`/api/inbox?include_handled=${includeHandled}` + (category ? `&category=${category}` : '')),
+  checkInbox: () => req('/api/inbox/check', { method: 'POST' }),
+  inboxHandled: (id, handled = true) => req(`/api/inbox/${id}/handled?handled=${handled}`, { method: 'POST' }),
+  setOutcome: (id, body) => req(`/api/jobs/${id}/outcome`, { method: 'POST', body: JSON.stringify(body) }),
+  kit: (id) => req(`/api/jobs/${id}/kit`),
+  prep: (id, kind) => req(`/api/jobs/${id}/prep`, { method: 'POST', body: JSON.stringify({ kind }) }),
+  mock: (id, question, answer) =>
+    req(`/api/jobs/${id}/mock`, { method: 'POST', body: JSON.stringify({ question, answer }) }),
+  debrief: (id, notes, interviewer) =>
+    req(`/api/jobs/${id}/debrief`, { method: 'POST', body: JSON.stringify({ notes, interviewer }) }),
+  attempts: (id) => req(`/api/jobs/${id}/attempts`),
+  screenshotUrl: (aid) => `/api/attempts/${aid}/screenshot`,
+  linkedinKit: () => req('/api/coach/linkedin'),
+  followups: () => req('/api/coach/followups'),
+  weekly: () => req('/api/coach/weekly'),
+  emailWeekly: () => req('/api/coach/weekly/email', { method: 'POST' }),
+}
+
+export function copy(text) {
+  try { navigator.clipboard.writeText(text) } catch { /* older browsers */ }
 }
