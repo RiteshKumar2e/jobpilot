@@ -105,7 +105,8 @@ export default function Settings({ system, reload }) {
           </div>
           <div className="muted" style={{ marginTop: 10, fontSize: 12 }}>
             Sources: {(config.sources?.greenhouse_boards || []).length} Greenhouse boards,
-            {' '}{(config.sources?.lever_accounts || []).length} Lever accounts configured.
+            {' '}{(config.sources?.lever_accounts || []).length} Lever accounts in your profile — every
+            source, company and its health is on the Sources and Companies pages.
           </div>
         </div>
       )}

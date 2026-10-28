@@ -42,7 +42,20 @@ export default function JobDrawer({ jobId, onClose }) {
         </div>
         <div className="muted">{job.company} · {job.location || 'location n/a'}</div>
 
+        {job.sources?.length > 1 && (
+          <div className="flag" style={{ marginTop: 10 }}>
+            Listed on {job.sources.length} sources — it's one job and will only be applied to once.
+          </div>
+        )}
+
         <div className="kv">
+          <div className="k">State</div><div><span className={`chip ${job.lifecycle}`}>{job.lifecycle}</span></div>
+          <div className="k">How to apply</div><div>{
+            job.apply_mode === 'auto' ? 'Auto-submit (allowlisted source)'
+              : job.apply_mode === 'assist' ? 'Browser fills the form when you approve'
+                : 'You apply on the site (handoff) — materials below'}</div>
+          <div className="k">Found on</div><div>{(job.sources?.length ? job.sources : [{ source: job.source, url: job.job_url }])
+            .map((s, i) => <div key={i}><a href={s.url} target="_blank" rel="noreferrer">{s.source}</a></div>)}</div>
           <div className="k">Match score</div><div><b>{job.match_score ?? '—'}</b></div>
           <div className="k">Eligibility</div><div><span className={`chip ${job.eligibility_status}`}>{job.eligibility_status}</span></div>
           <div className="k">App status</div><div><span className={`chip ${job.application_status}`}>{job.application_status}</span></div>
@@ -71,6 +84,8 @@ export default function JobDrawer({ jobId, onClose }) {
           {job.tailored_resume_path &&
             <a className="btn ghost" href={api.resumeUrl(jobId)} target="_blank" rel="noreferrer">Download resume</a>}
           <a className="btn ghost" href={job.job_url} target="_blank" rel="noreferrer">View posting</a>
+          {job.application_url && job.application_url !== job.job_url &&
+            <a className="btn ghost" href={job.application_url} target="_blank" rel="noreferrer">Application page</a>}
         </div>
 
         {mats?.cover_letter && (
@@ -81,8 +96,12 @@ export default function JobDrawer({ jobId, onClose }) {
         )}
 
         <div className="row" style={{ marginTop: 18 }}>
-          <button className="btn good" disabled={busy || job.application_status === 'SUBMITTED_CONFIRMED'}
-            onClick={approve}>Approve & submit</button>
+          {job.apply_mode === 'handoff'
+            ? <a className="btn good" href={job.application_url || job.job_url} target="_blank" rel="noreferrer">
+                Open & apply yourself</a>
+            : <button className="btn good"
+                disabled={busy || ['SUBMITTED_CONFIRMED', 'SUBMISSION_UNVERIFIED'].includes(job.application_status)}
+                onClick={approve}>Approve & submit</button>}
           <button className="btn bad" disabled={busy} onClick={reject}>Reject</button>
         </div>
         {msg && <div className="banner auto" style={{ marginTop: 12 }}>{msg}</div>}

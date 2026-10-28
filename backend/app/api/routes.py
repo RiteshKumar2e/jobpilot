@@ -46,6 +46,7 @@ def system(db: Session = Depends(get_session)):
         "llm_provider": s.llm_provider.value,
         "daily_application_limit": s.daily_application_limit,
         "daily_autosubmit_limit": s.daily_autosubmit_limit,
+        "auto_apply_sources": s.auto_apply_sources,
         "discovery_cron": s.discovery_cron,
         "next_run": sched.next_run() if sched else None,
         "sheets_enabled": bool(sheets and sheets.enabled),
@@ -234,6 +235,10 @@ def approve_job(job_id: str, db: Session = Depends(get_session)):
     if job.application_status in (ApplicationStatus.SUBMITTED_CONFIRMED.value,
                                   ApplicationStatus.SUBMISSION_UNVERIFIED.value):
         return {"status": "already_submitted", "application_status": job.application_status}
+    # Portals / feeds / careers pages: no browser automation — you apply there.
+    if _job_out(job, {}).apply_mode == "handoff":
+        raise HTTPException(409, f"{job.source} needs a manual application — open the "
+                                 f"posting and apply there (resume + cover letter are ready).")
     orch = get_orchestrator()
     job.application_status = ApplicationStatus.APPROVED.value
     db.commit()

@@ -4,10 +4,16 @@ import Overview from './views/Overview.jsx'
 import Jobs from './views/Jobs.jsx'
 import Activity from './views/Activity.jsx'
 import Settings from './views/Settings.jsx'
+import Sources from './views/Sources.jsx'
+import Companies from './views/Companies.jsx'
+import Monitoring from './views/Monitoring.jsx'
 
 const NAV = [
   ['overview', 'Overview'],
   ['jobs', 'Jobs'],
+  ['sources', 'Sources'],
+  ['companies', 'Companies'],
+  ['monitoring', 'Monitoring'],
   ['activity', 'Activity & Logs'],
   ['settings', 'Settings'],
 ]
@@ -56,7 +62,7 @@ export default function App() {
           <div className={`banner ${system.approval_mode === 'SAFE' ? 'safe' : 'auto'}`}>
             {system.approval_mode === 'SAFE'
               ? '🛡 SAFE mode — nothing is submitted without your explicit approval.'
-              : `⚡ Auto-apply ON — Greenhouse & Lever jobs, up to ${system.daily_autosubmit_limit}/day; anything that needs you is emailed.`}
+              : `⚡ Auto-apply ON — ${(system.auto_apply_sources || []).join(' & ') || 'allowlisted'} jobs, up to ${system.daily_autosubmit_limit}/day; other sources are prepared for you to apply, and anything that needs you is emailed.`}
             {system.paused && ' · ⏸ Automation paused.'}
             {!system.sheets_enabled && ' · Google Sheets tracker off (optional).'}
             {system.sheet_url && <> · <a href={system.sheet_url} target="_blank" rel="noreferrer">📊 Open Google Sheet</a></>}
@@ -65,6 +71,9 @@ export default function App() {
 
         {view === 'overview' && <Overview />}
         {view === 'jobs' && <Jobs />}
+        {view === 'sources' && <Sources />}
+        {view === 'companies' && <Companies />}
+        {view === 'monitoring' && <Monitoring />}
         {view === 'activity' && <Activity />}
         {view === 'settings' && <Settings system={system} reload={loadSystem} />}
       </main>

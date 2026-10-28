@@ -2,7 +2,7 @@
 
 **A multi-agent system that finds entry-level jobs, picks the right resume, and applies for you — truthfully, within safe limits, with an email for every application.**
 
-JobPilot discovers openings from the official Greenhouse and Lever job-board APIs, checks each one against hard eligibility rules, scores it against your profile, chooses the best of your own resumes, fills in the real application form in a headless browser, and submits it when every required answer is known. Anything it can't answer honestly is emailed to you with a link instead of being guessed.
+JobPilot discovers openings from companies' own job boards (Greenhouse, Lever, Ashby, Workable, SmartRecruiters, Recruitee, Personio, Breezy, Workday), from company careers pages, and from public job feeds (Remotive, Remote OK, Himalayas, We Work Remotely, Arbeitnow, Adzuna). It merges duplicates across sources, checks each job against hard eligibility rules, scores it against your profile, and chooses the best of your own resumes. On sources that allow it, it fills in and submits the real application form when every required answer is known. Everywhere else it prepares the resume and cover letter and hands the job to you. Anything it can't answer honestly is emailed to you with a link instead of being guessed.
 
 ![Python](https://img.shields.io/badge/python-3.11%2B-blue) ![FastAPI](https://img.shields.io/badge/FastAPI-backend-009688) ![React](https://img.shields.io/badge/React-Vite-61dafb) ![Playwright](https://img.shields.io/badge/Playwright-Chromium-2ead33) ![Cost](https://img.shields.io/badge/running%20cost-%E2%82%B90-success)
 
@@ -12,6 +12,7 @@ JobPilot discovers openings from the official Greenhouse and Lever job-board API
 
 - [Features](#features)
 - [How it works](#how-it-works)
+- [Job sources](#job-sources)
 - [Prerequisites](#prerequisites)
 - [Installation](#installation)
 - [Configuration](#configuration)
@@ -23,12 +24,17 @@ JobPilot discovers openings from the official Greenhouse and Lever job-board API
 - [Project structure](#project-structure)
 - [Troubleshooting](#troubleshooting)
 - [Limitations](#limitations)
+- [Adding a job source](#adding-a-job-source)
 
 ---
 
 ## Features
 
-- **Hands-free applying** — Greenhouse and Lever forms are filled and submitted automatically, up to a daily cap.
+- **Many job sources** — 16 working adapters: 9 company ATS platforms, company careers pages, and 6 public job feeds. LinkedIn, Naukri, Indeed and other portals are covered through search links and URL import, not scraping.
+- **Company registry** — watch any company by pasting its careers link. Boards linked from other listings are discovered and added automatically.
+- **One job, many sources** — the same opening on Remotive, Himalayas and the company's Greenhouse board is merged into one job, and it is applied to at most once.
+- **Hands-free applying** — Greenhouse and Lever forms are filled and submitted automatically, up to a daily cap. Other sources are prepared and handed to you.
+- **Source health** — per-source run history, retries with backoff, and a circuit breaker. One broken source never stops the others.
 - **Your own resumes** — keep several role-specific variants in `data/resumes/`; the best one for each role is uploaded.
 - **Hard eligibility rules** — rejects senior roles, internships, roles needing more experience than you have, and onsite/hybrid jobs outside India (remote jobs anywhere are accepted).
 - **Transparent scoring** — 0–100 match score with a per-component breakdown.
@@ -39,23 +45,72 @@ JobPilot discovers openings from the official Greenhouse and Lever job-board API
 
 ## How it works
 
-Nine agents run as one pipeline, orchestrated on a schedule (every 6 hours by default):
+One orchestrated pipeline runs on a schedule (every 6 hours by default):
 
 ```
-Discover → Verify → Score → Select resume → Prepare materials → Fill form → Submit → Notify → Track
+Discover sources ─┬─> Merge duplicates → Close removed listings → Verify → Score → Select resume
+Discover companies┘   → Prepare materials → Apply (auto / on approve / handoff) → Notify → Track
 ```
 
-| # | Agent | Responsibility |
+| Step | Where | Responsibility |
 |---|---|---|
-| 1 | **Discovery** | Fetches listings from official Greenhouse and Lever public APIs. |
-| 2 | **Verification** | Applies hard eligibility rules → `VERIFIED` / `NEEDS_REVIEW` / `REJECTED`. |
-| 3 | **Matching** | Scores fit: skills 30 · experience 25 · projects 20 · location 10 · role 10 · compensation 5. |
-| 4 | **Resume Intelligence** | Labels your resumes (GenAI, ML, Backend, …) and picks the closest one per job. |
-| 5 | **Materials** | Cover letter and form answers built only from your profile. |
-| 6 | **Browser Apply** | Opens the real form in headless Chromium, uploads your resume, fills known fields, submits, and verifies the confirmation page. |
-| 7 | **Sheets Tracker** | Keeps the Google Sheet up to date. |
-| 8 | **Follow-up / QC** | Flags stale or unconfirmed applications and duplicates. |
-| 9 | **Notifier** | Sends the "Applied" and "needs you" emails. |
+| **Source discovery** | `agents/discovery.py`, `providers/` | Runs every enabled source concurrently, with retries, rate limits and a circuit breaker. Records health per source. |
+| **Company discovery** | `agents/discovery.py`, `providers/careers.py` | ATS boards linked from feed listings and careers pages join the company registry and are polled from then on. |
+| **Listing verification** | `orchestrator._close_missing` | A job missing from a board that was fetched in full is marked `CLOSED` and never applied to. |
+| **Enrichment** | `providers/*` | Normalizes title, company, location, work mode, salary, employment type, experience and posting date for every source. |
+| **Eligibility** | `agents/verification.py` | Hard rules: seniority, internships, years of experience, role relevance, location and remote eligibility. → `VERIFIED` / `NEEDS_REVIEW` / `REJECTED`. |
+| **Matching** | `agents/matching.py` | Score out of 100: skills 30 · experience 25 · projects 15 · location 10 · role 10 · compensation 5 · freshness 5. An unknown date or salary counts as neutral, never as a match. |
+| **Resume intelligence** | `agents/resume_intel.py` | Labels your resumes and picks the closest one per job. |
+| **Application preparation** | `agents/materials.py` | Cover letter and form answers built only from your profile. |
+| **Application execution** | `agents/browser_apply.py` | Auto-submits on allowlisted sources, fills the form on your Approve, or hands off (see [Job sources](#job-sources)). |
+| **Human review** | dashboard → Jobs | Approve or reject prepared jobs; jobs that need you have their own tab. |
+| **Quality assurance** | `agents/followup.py`, `orchestrator` | Submission evidence (`SUBMITTED_CONFIRMED` vs `SUBMISSION_UNVERIFIED`), duplicate and stale checks. |
+| **Notification** | `agents/notifier.py` | "Applied" email per submission, plus one digest per run of what needs you or what to apply to yourself. |
+| **Tracking** | `agents/sheets_tracker.py`, database | Google Sheet, dashboard, full audit log. |
+
+---
+
+## Job sources
+
+Every source sits behind one interface (`backend/app/providers/base.py`). The table shows what is **implemented and tested** today. Each fetchable adapter has a parser test against a payload captured from its live API, and was checked live on 2026-10-28.
+
+### Fetched automatically
+
+| Source | Type | API used | Key? | Applying | What you configure (`sources:` in the profile) |
+|---|---|---|---|---|---|
+| Greenhouse | Company ATS | Official Job Board API | No | **Auto-submit** | `greenhouse_boards: [stripe, …]` |
+| Lever | Company ATS | Official Postings API | No | **Auto-submit** | `lever_accounts: [paytm, …]` |
+| Ashby | Company ATS | Official public Job Posting API | No | Fill on approve | `ashby_boards: [sarvam, …]` |
+| Workable | Company ATS | Public careers-widget JSON | No | Fill on approve | `workable_accounts: […]` |
+| SmartRecruiters | Company ATS | Official Posting API (India postings; `Name?all` for all countries) | No | Fill on approve | `smartrecruiters_companies: [NielsenIQ, …]` |
+| Recruitee | Company ATS | Public Careers Site API | No | Fill on approve | `recruitee_companies: […]` |
+| Personio | Company ATS | Public XML feed | No | Fill on approve | `personio_companies: […]` |
+| Breezy HR | Company ATS | Public careers JSON (no descriptions) | No | Fill on approve | `breezy_companies: […]` |
+| Workday | Company ATS | Public `myworkdayjobs.com` JSON, searched with your queries; keeps India and remote postings | No | Fill on approve | `workday_sites: ["nvidia.wd5/NVIDIAExternalCareerSite"]` |
+| Careers pages | Any website | schema.org `JobPosting` JSON-LD, plus links to the ATS boards above | No | You apply | `career_pages: ["https://…/careers"]` |
+| Remotive | Remote feed | Public API (search) | No | You apply | `feeds: {remotive: true}` |
+| Remote OK | Remote feed | Public API (latest jobs) | No | You apply | `feeds: {remoteok: true}` |
+| Himalayas | Remote feed | Public search API, `country=India` | No | You apply | `feeds: {himalayas: true}` |
+| We Work Remotely | Remote feed | Public RSS per category | No | You apply | `feeds: {weworkremotely: [categories]}` |
+| Arbeitnow | Job feed | Free public API (mostly Europe) | No | You apply | `feeds: {arbeitnow: true}` |
+| Adzuna | Aggregator | Official API, India index | **Yes** (free) | You apply | `ADZUNA_APP_ID` / `ADZUNA_APP_KEY` in `.env` |
+
+Applying modes:
+
+- **Auto-submit** — in `RESTRICTED_AUTO` mode, only for sources on `JOBPILOT_AUTO_APPLY_ALLOWLIST` (default `greenhouse,lever`). These are the only form flows that have been tested end to end.
+- **Fill on approve** — when you press **Approve & submit**, the browser fills the form with the same truthful-answer rules and stops at anything unknown. This is best-effort: these forms haven't been tested end to end. Add a source to the allowlist only after you've watched it work.
+- **You apply (handoff)** — the job is verified, scored and given a resume and cover letter, then emailed to you once with the link. The dashboard shows **Open & apply yourself**, and the server refuses to automate it.
+
+### Search links and URL import only (no automated access)
+
+LinkedIn, Naukri, Indeed, Glassdoor, Foundit, Wellfound, Y Combinator's Work at a Startup, Instahyre, Cutshort, Hirist, iimjobs, TimesJobs and Dice either have no public jobs API, limit their API to partners, or forbid automated access in their terms. JobPilot does **not** scrape them, log in to them, or reuse your session cookies. Instead:
+
+- **Sources → Search the portals yourself** builds ready-made searches for your target roles: LinkedIn filtered to entry level and the last 7 days, Naukri for 0 years' experience, and so on. It also builds "web:" searches for postings hosted on Greenhouse, Lever, Ashby, Workable and SmartRecruiters.
+- **Sources → Import a job URL**:
+  - a company ATS link is fetched through its adapter, and the company is watched from then on;
+  - a portal link needs the title and company (paste the description for a better score); the job is prepared and handed to you.
+
+Also not implemented: iCIMS, Oracle Recruiting, SAP SuccessFactors, Jobvite, BambooHR (its public list now redirects), Teamtailor (needs a company API key), Comeet, Pinpoint and Rippling. For these, add the company's careers page: JSON-LD postings and linked supported boards are still picked up. Career sitemaps and search-engine APIs aren't used.
 
 ---
 

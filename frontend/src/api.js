@@ -13,7 +13,9 @@ async function req(path, opts = {}) {
   })
   if (!res.ok) {
     const text = await res.text()
-    throw new Error(`${res.status}: ${text}`)
+    let detail = text
+    try { detail = JSON.parse(text).detail || text } catch { /* not JSON */ }
+    throw new Error(`${res.status}: ${typeof detail === 'string' ? detail : JSON.stringify(detail)}`)
   }
   const ct = res.headers.get('content-type') || ''
   return ct.includes('application/json') ? res.json() : res.text()
@@ -47,4 +49,15 @@ export const api = {
   setSchedule: (cron) =>
     req(`/api/schedule?cron=${encodeURIComponent(cron)}`, { method: 'POST' }),
   resumeUrl: (id) => `/api/jobs/${id}/resume`,
+  // multi-source discovery
+  sources: () => req('/api/sources'),
+  testSource: (provider, target) =>
+    req('/api/sources/test', { method: 'POST', body: JSON.stringify({ provider, target }) }),
+  companies: () => req('/api/companies'),
+  addCompany: (body) => req('/api/companies', { method: 'POST', body: JSON.stringify(body) }),
+  watchCompany: (id, watch) => req(`/api/companies/${id}/watch?watch=${watch}`, { method: 'POST' }),
+  deleteCompany: (id) => req(`/api/companies/${id}`, { method: 'DELETE' }),
+  importJob: (body) => req('/api/jobs/import', { method: 'POST', body: JSON.stringify(body) }),
+  portalLinks: (q) => req('/api/portals/links' + (q ? `?q=${encodeURIComponent(q)}` : '')),
+  monitoring: () => req('/api/monitoring'),
 }

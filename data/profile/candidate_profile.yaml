@@ -194,3 +194,31 @@ sources:
                       "elastic", "druva", "groww", "twilio", "coinbase", "airbnb",
                       "samsara", "figma", "observeai", "devrev"]
   lever_accounts:    ["paytm", "meesho", "hevodata", "zeta", "cred", "mindtickle", "fampay"]
+  # Added 2026-10-28 — each checked live with India openings. Items may be
+  # "slug" or {id: slug, name: "Display Name"}.
+  ashby_boards:
+    - {id: sarvam, name: "Sarvam AI"}
+    - {id: atlan, name: "Atlan"}
+    - {id: composio, name: "Composio"}
+    - {id: notion, name: "Notion"}
+    - {id: openai, name: "OpenAI"}
+    - {id: elevenlabs, name: "ElevenLabs"}
+  smartrecruiters_companies: ["NielsenIQ", "Experian", "Freshworks", "BoschGroup"]  # India postings
+  workday_sites: ["nvidia.wd5/NVIDIAExternalCareerSite"]                           # tenant.wdN/Site
+  workable_accounts: []
+  recruitee_companies: []
+  personio_companies: []
+  breezy_companies: []
+  career_pages: []        # any careers URL: JSON-LD jobs + linked ATS boards get registered
+  # Public job feeds (remote / aggregators). Adzuna needs ADZUNA_APP_ID/KEY in backend/.env.
+  feeds:
+    remotive: true
+    himalayas: true        # searched with country=India
+    remoteok: true
+    weworkremotely: ["remote-programming-jobs", "remote-back-end-programming-jobs",
+                     "remote-full-stack-programming-jobs"]
+    arbeitnow: true
+    adzuna: true
+  # Searched on feeds/Workday and used for the LinkedIn/Naukri/... search links.
+  search_queries: ["machine learning engineer", "ai engineer", "software engineer",
+                   "python developer", "backend engineer", "computer vision engineer"]
