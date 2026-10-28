@@ -230,6 +230,26 @@ def test_job_missing_from_complete_board_is_closed():
         db.close()
 
 
+def test_closure_uses_full_board_list_not_filtered_titles():
+    """A stored job whose title no longer passes the filter is still on the
+    board — it must not be marked closed."""
+    from app.providers.ats import _board
+    from app.providers.base import FetchContext, Target
+    jobs = [_job("greenhouse", "1"), _job("greenhouse", "2", title="Account Executive")]
+    res = _board(jobs, Target("greenhouse", "acme"), FetchContext(
+        http=None, title_ok=lambda t: "engineer" in t.lower()))
+    assert [j.source_id for j in res.jobs] == ["1"] and res.listed_ids == ["1", "2"]
+
+
+def test_job_cap_is_spread_across_sources():
+    from app.agents.discovery import _round_robin
+    big = [_job("greenhouse", str(i)) for i in range(100)]
+    small = [_job("remotive", f"r{i}") for i in range(3)]
+    kept = _round_robin([big, small], 10)
+    assert len(kept) == 10 and sum(j.source == "remotive" for j in kept) == 3
+    assert len(_round_robin([big, small], 1000)) == 103
+
+
 # ---- lifecycle ------------------------------------------------------------- #
 def test_lifecycle_states():
     j = Job(job_id="x", source="s", company="c", title="t",
