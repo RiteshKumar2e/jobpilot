@@ -35,6 +35,11 @@ JobPilot discovers openings from companies' own job boards (Greenhouse, Lever, A
 - **One job, many sources** — the same opening on Remotive, Himalayas and the company's Greenhouse board is merged into one job, and it is applied to at most once.
 - **Hands-free applying** — Greenhouse and Lever forms are filled and submitted automatically, up to a daily cap. Other sources are prepared and handed to you.
 - **Source health** — per-source run history, retries with backoff, and a circuit breaker. One broken source never stops the others.
+- **Answer Bank** — every question that stopped an application, in one list. Answer it once and every job waiting on it goes through by itself.
+- **Inbox → tracker** — reads recruiter emails (Gmail, read-only), marks interviews, assessments, rejections and offers on the right job, confirms submissions from the company's own email, and drafts replies and calendar links. Nothing is ever sent for you.
+- **Interview coach** — per job: dream-job kit (keyword match %, a recruiter note), prep brief, mock interview with scoring, and a thank-you email after the call.
+- **LinkedIn kit, follow-ups, weekly review** — headline, About and top skills to paste into LinkedIn; follow-up notes for applications with no reply after 7 days; a Sunday review email with reply rates by source and resume.
+- **Scam filter** — listings that ask for a fee or deposit, or move hiring to WhatsApp or Telegram, are rejected.
 - **Your own resumes** — keep several role-specific variants in `data/resumes/`; the best one for each role is uploaded.
 - **Hard eligibility rules** — rejects senior roles, internships, roles needing more experience than you have, off-target roles (support, sales, analyst, …), onsite/hybrid jobs outside India, and remote jobs limited to other countries.
 - **Transparent scoring** — 0–100 match score with a per-component breakdown.
@@ -65,7 +70,10 @@ Discover companies┘   → Prepare materials → Apply (auto / on approve / han
 | **Application execution** | `agents/browser_apply.py` | Auto-submits on allowlisted sources, fills the form on your Approve, or hands off (see [Job sources](#job-sources)). |
 | **Human review** | dashboard → Jobs | Approve or reject prepared jobs; jobs that need you have their own tab. |
 | **Quality assurance** | `agents/followup.py`, `orchestrator` | Submission evidence (`SUBMITTED_CONFIRMED` vs `SUBMISSION_UNVERIFIED`), duplicate and stale checks. |
-| **Notification** | `agents/notifier.py` | "Applied" email per submission, plus one digest per run of what needs you or what to apply to yourself. |
+| **Notification** | `agents/notifier.py` | "Applied" email per submission, one digest per run of what needs you, an alert when a recruiter emails, and the weekly review. |
+| **Inbox** | `agents/inbox.py` | Hourly, read-only Gmail check: classifies recruiter mail, matches it to the job, updates the outcome, drafts replies. |
+| **Answer Bank** | `answer_bank.py` | Collects unanswered form questions; your answers go into the profile and stuck jobs retry. |
+| **Coach** | `coach.py` | Dream-job kit, prep brief, mock interview, debrief, LinkedIn kit, follow-ups, weekly review (Groq/Gemini if set, templates otherwise). |
 | **Tracking** | `agents/sheets_tracker.py`, database | Google Sheet, dashboard, full audit log. |
 
 ---
@@ -188,6 +196,10 @@ cd backend
 | `JOBPILOT_BREAKER_THRESHOLD` | `3` | Failures in a row before a source cools down (1 h, doubling, max 24 h; then retried). |
 | `JOBPILOT_AUTO_WATCH_DISCOVERED` | `true` | Poll company boards found inside other listings. |
 | `ADZUNA_APP_ID` / `ADZUNA_APP_KEY` | | Optional — [developer.adzuna.com](https://developer.adzuna.com). |
+| `JOBPILOT_INBOX_ENABLED` | `true` | Read recruiter replies from Gmail (read-only IMAP, same App Password as email). |
+| `JOBPILOT_INBOX_CRON` | `20 * * * *` | How often the inbox is checked (UTC). |
+| `JOBPILOT_INBOX_LOOKBACK_DAYS` | `3` | How far back each check looks. |
+| `JOBPILOT_WEEKLY_REVIEW_DAY` | `sun` | Weekly review email (09:00 IST). |
 
 `.env` is git-ignored. Never commit it.
 
@@ -298,6 +310,10 @@ The sheet **"JobPilot — Application Tracker"** is created in your Google Drive
 | **Sources** | Every source with its type, status (active / degraded / failing / needs key / disabled / handoff), how it applies, last success, jobs found and eligible. Also: per-target health, **Test a source**, **Import a job URL**, and the portal search links. |
 | **Companies** | The company registry: platform, relevant open jobs, eligible jobs, careers link, how it was found. Add by URL, and watch or unwatch each company. |
 | **Monitoring** | Live counts, listings per source, duplicate rate, last run per source, source errors, jobs by state, recent discovery activity. |
+| **Answer Bank** | Questions that stopped your applications (with the jobs waiting on each), the questions every form asks with your current answer, and all saved answers. Type an answer and it's saved to your profile. |
+| **Inbox** | Recruiter emails by type (interviews, assessments, security codes, offers, replies, confirmations, rejections), the job each one is about, a draft reply to copy, an "Add to Google Calendar" link, and **Open in Gmail**. |
+| **Coach** | Weekly review (reply rates by source and resume, rejection reasons, three changes for next week), follow-up notes with a "find recruiter" link, and the LinkedIn kit. |
+| **Job drawer** | Also: outcome (recruiter reply → interview → offer / rejected), dream-job kit, interview prep brief, mock interview, after-the-call debrief, and **What was sent** (fields filled, plus a screenshot of the form). |
 | **Activity & Logs** | Live event log of every agent and every application attempt. |
 | **Settings** | API key, schedule, pause/resume automation, reload profile. |
 
@@ -324,6 +340,8 @@ JobPilot never bypasses anti-bot checks, never invents skills, experience or ans
 
 Duplicate protection: one job can be listed on several sources (stored in `job_sources`) but has one application status. Approving an already-submitted job is refused, and a cross-source copy of a job you've applied to is never turned into a new job.
 
+Inbox and LinkedIn: Gmail is opened read-only (IMAP `EXAMINE` + `BODY.PEEK`, so nothing is marked read, moved or deleted). Only job-related mail is stored, as a short snippet, and replies are drafts you send yourself. JobPilot never edits LinkedIn or sends LinkedIn messages; the LinkedIn kit and follow-up notes are for you to paste. Text from job posts and emails is treated as data, so instructions hidden in it are ignored.
+
 Compliance: only official or public endpoints are used, with a per-host request gap, retries only on 429/5xx, and bounded pages and concurrency. Remotive, Remote OK and Arbeitnow ask for attribution, so their links are kept. Portals that forbid automation are search-link and handoff only.
 
 ---
@@ -335,7 +353,7 @@ cd backend
 .\.venv\Scripts\python.exe -m pytest -q
 ```
 
-98 tests. They cover:
+122 tests. They cover:
 
 - every provider parser, against payloads captured from the live APIs (`tests/fixtures/`);
 - pagination, the detail-request budget, title pre-filtering, and HTTP retry and give-up;
@@ -344,6 +362,8 @@ cd backend
 - cross-source dedup, including promotion to the ATS copy and never re-targeting an applied job;
 - closed-listing detection, job states, and the database migration;
 - the sources, companies, jobs-filter, import and portal-link endpoints, and approve-twice prevention;
+- the Answer Bank (YAML writes that keep comments, and grouping of waiting questions), inbox classification and job matching (including real-world cases), never moving an outcome backwards, confirmation from email, and the coach outputs and their limits;
+- the scam filter;
 - the existing coverage: verification rules, scoring, resume selection, the auto-submit policy, LLM fallbacks and notifications.
 
 Tests use an isolated temporary database and no network.
@@ -362,6 +382,8 @@ jobpilot/
 │   │   ├── providers/       # job sources: base.py (interface, HTTP), ats.py, feeds.py,
 │   │   │                    # careers.py (JSON-LD + ATS detection), portals.py (handoff)
 │   │   ├── importer.py      # import one job by URL
+│   │   ├── answer_bank.py   # unanswered questions → profile answers
+│   │   ├── coach.py         # prep, mock, debrief, LinkedIn kit, follow-ups, weekly review
 │   │   ├── llm/             # Groq / Gemini / rule-based providers
 │   │   ├── resume/          # resume parsing and tailoring
 │   │   ├── orchestrator.py  # pipeline, checkpoints, recovery
@@ -408,6 +430,8 @@ jobpilot/
 - Cross-source dedup matches on canonical URL or on company + normalized title + city. A copy listed under a different city name, or "Remote" vs. a city, can stay separate.
 - Breezy listings have no description, so they're verified on title and location only.
 - Essay-style questions, CAPTCHAs and emailed security codes always need you; those applications are emailed, not submitted.
+- The inbox matches emails to jobs by company name (and title), so two open applications at one company can be confused. Interview slots in draft replies are suggestions; JobPilot doesn't read your calendar.
+- Prep briefs don't research the company online; they use the job post and your profile.
 - `SUBMISSION_UNVERIFIED` means the form was submitted but no confirmation page was seen. Check your inbox; some forms email a security code you must enter.
 
 ---

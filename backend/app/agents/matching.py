@@ -89,11 +89,13 @@ class MatchingAgent:
                 matching.append(sk)
         # "missing" = skills the job clearly asks for that candidate lacks.
         # Heuristic: common tech terms in the JD not in candidate skills.
-        common_tech = {"java", "c++", "golang", "go", "rust", "kubernetes", "aws",
+        common_tech = {"java", "c++", "golang", "rust", "kubernetes", "aws",
                        "gcp", "azure", "spark", "kafka", "scala", "ruby", "php",
                        "tensorflow", "pytorch", "react", "angular", "vue", "nlp",
                        "langchain", "llm", "rag", "docker", "sql", "nosql"}
-        jd_tech = {t for t in common_tech if (t in blob)}
+        # whole words: "go" was matching "good"/"google", "java" "javascript", "rag" "storage"
+        jd_tech = {t for t in common_tech
+                   if re.search(rf"(?<![a-z0-9+#]){re.escape(t)}(?![a-z0-9+#])", blob)}
         missing = sorted(jd_tech - set(self.skills) - {m for m in matching})
         # score: proportion of candidate skills present, capped, with a floor if any match
         if not self.skills:

@@ -31,7 +31,7 @@ from sqlalchemy import select
 from .llm import get_llm
 from .models import ApplicationStatus, EligibilityStatus, Job, OUTCOME_RANK
 
-_TECH = {"python", "java", "c++", "golang", "go", "rust", "javascript", "typescript", "react",
+_TECH = {"python", "java", "c++", "golang", "rust", "javascript", "typescript", "react",
          "node.js", "node", "fastapi", "django", "flask", "express", "sql", "postgresql", "mysql",
          "mongodb", "redis", "kafka", "spark", "airflow", "docker", "kubernetes", "aws", "gcp",
          "azure", "linux", "git", "rest", "graphql", "microservices", "pytorch", "tensorflow",
@@ -41,12 +41,17 @@ _TECH = {"python", "java", "c++", "golang", "go", "rust", "javascript", "typescr
          "algorithms", "system design", "ci/cd", "terraform", "jwt", "oauth"}
 
 
+_CHECK_RULE = (" Items tagged [CHECK] are NOT confirmed by the candidate: keep the tag, never "
+               "call them verified, and don't add details to them.")
+
+
 def _llm(system: str, prompt: str, fallback: str, max_tokens: int = 900) -> str:
     llm = get_llm()
     if llm.provider_name == "none":
         return fallback
     try:
-        return llm.complete(system, f"{prompt}\nFALLBACK:::{fallback}", max_tokens=max_tokens).text or fallback
+        return llm.complete(system + _CHECK_RULE, f"{prompt}\nFALLBACK:::{fallback}",
+                            max_tokens=max_tokens).text or fallback
     except Exception:
         return fallback
 

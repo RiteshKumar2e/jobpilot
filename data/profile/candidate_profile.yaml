@@ -141,7 +141,7 @@ application_answers:
   - {match: "sponsor", answer: "No"}
   - {match: "authori[sz](ed|ation) to work|(legal|legally) (right|eligible|permitted)|right to work|work permit", answer: "Yes"}
   - {match: "notice period|when can you (start|join)|earliest (start|joining)", answer: "Immediate"}
-  - {match: "relocat|work from (the )?office|in[- ]office|on[- ]?site|days? (a week )?(in|from) (the )?office|commut", answer: "Yes"}
+  - {match: "relocat|work(ing)? from (the )?office|in[- ]office|on[- ]?site|days? (a week )?(in|from) (the )?office|commut", answer: "Yes"}
   # Not confirmed yet — uncomment only if true:
   # - {match: "(currently|previously) (work|been employed)|worked for .* before", answer: "No"}
 
