@@ -35,6 +35,15 @@ def _india_or_remote(text: str) -> bool:
     return is_india_location(t) or "remote" in t or "anywhere" in t
 
 
+def _board(jobs: List[RawJob], target: Target, ctx: FetchContext) -> FetchResult:
+    """A full board listing: remember every id (for closed-listing detection),
+    then keep the titles that pass your profile's relevance filter."""
+    listed = [j.source_id for j in jobs]
+    if target.filter_titles:
+        jobs = [j for j in jobs if ctx.title_ok(j.title)]
+    return FetchResult(jobs=jobs, complete=True, pages=1, listed_ids=listed)
+
+
 # --------------------------------------------------------------------------- #
 # Greenhouse
 # --------------------------------------------------------------------------- #
@@ -64,9 +73,7 @@ class GreenhouseProvider(Provider):
 
     def fetch(self, target: Target, ctx: FetchContext) -> FetchResult:
         jobs = parse_greenhouse(target.target, ctx.http.get_json(self.URL.format(token=target.target)))
-        if target.filter_titles:
-            jobs = [j for j in jobs if ctx.title_ok(j.title)]
-        return FetchResult(jobs=jobs, complete=True, pages=1)
+        return _board(jobs, target, ctx)
 
 
 # --------------------------------------------------------------------------- #
@@ -112,9 +119,7 @@ class LeverProvider(Provider):
 
     def fetch(self, target: Target, ctx: FetchContext) -> FetchResult:
         jobs = parse_lever(target.target, ctx.http.get_json(self.URL.format(account=target.target)))
-        if target.filter_titles:
-            jobs = [j for j in jobs if ctx.title_ok(j.title)]
-        return FetchResult(jobs=jobs, complete=True, pages=1)
+        return _board(jobs, target, ctx)
 
 
 # --------------------------------------------------------------------------- #
@@ -161,9 +166,7 @@ class AshbyProvider(Provider):
     def fetch(self, target: Target, ctx: FetchContext) -> FetchResult:
         data = ctx.http.get_json(self.URL.format(org=quote(target.target)))
         jobs = parse_ashby(target.target, data, target.label)
-        if target.filter_titles:
-            jobs = [j for j in jobs if ctx.title_ok(j.title)]
-        return FetchResult(jobs=jobs, complete=True, pages=1)
+        return _board(jobs, target, ctx)
 
 
 # --------------------------------------------------------------------------- #
@@ -220,6 +223,7 @@ class WorkableProvider(Provider):
     def fetch(self, target: Target, ctx: FetchContext) -> FetchResult:
         jobs = parse_workable_list(target.target,
                                    ctx.http.get_json(self.LIST.format(account=quote(target.target))))
+        listed = [j.source_id for j in jobs]
         if target.filter_titles:
             jobs = [j for j in jobs if ctx.title_ok(j.title)]
         budget = ctx.max_details
@@ -232,7 +236,7 @@ class WorkableProvider(Provider):
                 jobs[i] = apply_workable_detail(j, d)
             except Exception:
                 pass  # keep the listing without a description
-        return FetchResult(jobs=jobs, complete=True, pages=1)
+        return FetchResult(jobs=jobs, complete=True, pages=1, listed_ids=listed)
 
 
 # --------------------------------------------------------------------------- #
@@ -286,6 +290,7 @@ class SmartRecruitersProvider(Provider):
             if not batch:
                 break
         jobs = [parse_smartrecruiters_item(company, j) for j in items]
+        listed = [j.source_id for j in jobs]
         if target.filter_titles:
             jobs = [j for j in jobs if ctx.title_ok(j.title)]
         budget = ctx.max_details
@@ -298,7 +303,8 @@ class SmartRecruitersProvider(Provider):
                     company, ctx.http.get_json(self.DETAIL.format(c=quote(company), id=j.source_id)))
             except Exception:
                 pass
-        return FetchResult(jobs=jobs, complete=total is not None and len(items) >= total, pages=pages)
+        return FetchResult(jobs=jobs, complete=total is not None and len(items) >= total,
+                           pages=pages, listed_ids=listed)
 
 
 # --------------------------------------------------------------------------- #
@@ -342,9 +348,7 @@ class RecruiteeProvider(Provider):
 
     def fetch(self, target: Target, ctx: FetchContext) -> FetchResult:
         jobs = parse_recruitee(target.target, ctx.http.get_json(self.URL.format(c=target.target)))
-        if target.filter_titles:
-            jobs = [j for j in jobs if ctx.title_ok(j.title)]
-        return FetchResult(jobs=jobs, complete=True, pages=1)
+        return _board(jobs, target, ctx)
 
 
 # --------------------------------------------------------------------------- #
@@ -386,9 +390,7 @@ class PersonioProvider(Provider):
 
     def fetch(self, target: Target, ctx: FetchContext) -> FetchResult:
         jobs = parse_personio(target.target, ctx.http.get_text(self.URL.format(c=target.target)))
-        if target.filter_titles:
-            jobs = [j for j in jobs if ctx.title_ok(j.title)]
-        return FetchResult(jobs=jobs, complete=True, pages=1)
+        return _board(jobs, target, ctx)
 
 
 # --------------------------------------------------------------------------- #
@@ -428,9 +430,7 @@ class BreezyProvider(Provider):
 
     def fetch(self, target: Target, ctx: FetchContext) -> FetchResult:
         jobs = parse_breezy(target.target, ctx.http.get_json(self.URL.format(c=target.target)))
-        if target.filter_titles:
-            jobs = [j for j in jobs if ctx.title_ok(j.title)]
-        return FetchResult(jobs=jobs, complete=True, pages=1)
+        return _board(jobs, target, ctx)
 
 
 # --------------------------------------------------------------------------- #

@@ -53,6 +53,9 @@ class Target:
 class FetchResult:
     jobs: List[RawJob] = field(default_factory=list)
     complete: bool = False            # True = this is the board's FULL open list
+    # Every id the board listed, BEFORE title filtering. Closed-listing detection
+    # uses this, so a stored job that no longer passes the filter isn't "closed".
+    listed_ids: Optional[List[str]] = None
     pages: int = 0
     discovered_boards: List[tuple] = field(default_factory=list)  # (provider, id, name)
 
