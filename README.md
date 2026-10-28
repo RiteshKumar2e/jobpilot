@@ -184,7 +184,7 @@ cd backend
 | `JOBPILOT_PROVIDER_TIMEOUT` | `20` | Seconds per request (3 tries with backoff on 429/5xx). |
 | `JOBPILOT_MAX_PAGES_PER_PROVIDER` | `5` | Pagination cap per source per run. |
 | `JOBPILOT_MAX_DETAILS_PER_TARGET` | `40` | Job-detail requests per board per run (Workable, SmartRecruiters, Workday). |
-| `JOBPILOT_MAX_JOBS_PER_CYCLE` | `4000` | Hard cap on listings ingested per run. |
+| `JOBPILOT_MAX_JOBS_PER_CYCLE` | `10000` | Cap on listings ingested per run, spread evenly across sources. |
 | `JOBPILOT_BREAKER_THRESHOLD` | `3` | Failures in a row before a source cools down (1 h, doubling, max 24 h; then retried). |
 | `JOBPILOT_AUTO_WATCH_DISCOVERED` | `true` | Poll company boards found inside other listings. |
 | `ADZUNA_APP_ID` / `ADZUNA_APP_KEY` | | Optional — [developer.adzuna.com](https://developer.adzuna.com). |

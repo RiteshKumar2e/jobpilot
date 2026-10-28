@@ -22,7 +22,7 @@ from __future__ import annotations
 import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime, timedelta, timezone
-from typing import Dict, List, Optional
+from typing import Dict, List
 
 from sqlalchemy import select
 
@@ -140,9 +140,11 @@ class DiscoveryAgent:
             db.commit()
             self._register_companies(db, targets, results)
 
-        if len(jobs) > s.max_jobs_per_cycle:
-            log.warning(f"{len(jobs)} listings > max_jobs_per_cycle; keeping {s.max_jobs_per_cycle}")
-            jobs = jobs[: s.max_jobs_per_cycle]
+        jobs = _round_robin(per_target, s.max_jobs_per_cycle)
+        total = sum(len(x) for x in per_target)
+        if total > len(jobs):
+            log.warning(f"{total} listings > max_jobs_per_cycle; kept {len(jobs)} "
+                        f"(spread evenly across sources)")
         self.last_report = report
         return jobs
 
@@ -226,6 +228,26 @@ class DiscoveryAgent:
         db.commit()
 
 
+def _round_robin(lists: List[List[RawJob]], cap: int) -> List[RawJob]:
+    """Interleave sources so a cap trims the biggest boards, never starving the
+    small ones (one huge board used to fill the whole cap)."""
+    if sum(len(x) for x in lists) <= cap:
+        return [j for x in lists for j in x]
+    out, i = [], 0
+    while len(out) < cap:
+        took = False
+        for x in lists:
+            if i < len(x):
+                out.append(x[i])
+                took = True
+                if len(out) >= cap:
+                    break
+        if not took:
+            break
+        i += 1
+    return out
+
+
 def summarize_report(report: List[dict]) -> Dict[str, dict]:
     """Per-provider totals for logs / the Sources page."""
     out: Dict[str, dict] = {}
@@ -238,10 +260,3 @@ def summarize_report(report: List[dict]) -> Dict[str, dict]:
         p["jobs"] += r.get("count", 0)
     return out
 
-
-def remove_source_ids(report: List[dict]) -> List[dict]:
-    return [{k: v for k, v in r.items() if k != "source_ids"} for r in report]
-
-
-def get_target(report: List[dict], key: str) -> Optional[dict]:
-    return next((r for r in report if r["key"] == key), None)

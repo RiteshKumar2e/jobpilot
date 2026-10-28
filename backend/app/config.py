@@ -82,7 +82,7 @@ class Settings(BaseSettings):
     provider_timeout: int = 20              # seconds per HTTP request
     max_pages_per_provider: int = 5         # pagination cap per source per cycle
     max_details_per_target: int = 40        # job-detail requests per board per cycle
-    max_jobs_per_cycle: int = 4000          # hard cap on listings ingested per cycle
+    max_jobs_per_cycle: int = 10000         # hard cap on listings ingested per cycle (spread across sources)
     breaker_threshold: int = 3              # consecutive failures before a source cools down
     auto_watch_discovered: bool = True      # poll boards found inside other listings
     max_new_companies_per_cycle: int = 15
