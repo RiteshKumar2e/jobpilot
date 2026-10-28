@@ -191,7 +191,7 @@ def parse_workable_list(account: str, payload: dict) -> List[RawJob]:
         out.append(RawJob(
             source="workable", source_id=str(j.get("shortcode", "")), company=company, board=account,
             title=(j.get("title") or "").strip(),
-            location=("Remote; " + location) if remote and "remote" not in location.lower() else location,
+            location=("Remote - " + location) if remote and "remote" not in location.lower() else location,
             work_mode="remote" if remote else infer_work_mode("", location),
             employment_type=j.get("employment_type", ""),
             experience_req=j.get("experience", ""),
@@ -250,7 +250,7 @@ def parse_smartrecruiters_item(company_id: str, j: dict) -> RawJob:
     mode = "remote" if loc.get("remote") else "hybrid" if loc.get("hybrid") else (
         "onsite" if location else "")
     if mode == "remote" and "remote" not in location.lower():
-        location = f"Remote; {location}" if location else "Remote"
+        location = f"Remote - {location}" if location else "Remote"
     url = j.get("postingUrl") or f"https://jobs.smartrecruiters.com/{company_id}/{j.get('id', '')}"
     sections = ((j.get("jobAd") or {}).get("sections") or {})
     desc = strip_html(" ".join((sections.get(k) or {}).get("text", "") for k in
@@ -320,7 +320,7 @@ def parse_recruitee(company_id: str, payload: dict) -> List[RawJob]:
         mode = "remote" if o.get("remote") else "hybrid" if o.get("hybrid") else (
             "onsite" if location else "")
         if mode == "remote" and "remote" not in location.lower():
-            location = f"Remote; {location}" if location else "Remote"
+            location = f"Remote - {location}" if location else "Remote"
         sal = o.get("salary") or {}
         salary = (f"{sal.get('currency') or ''} {sal.get('min')}–{sal.get('max')} {sal.get('period') or ''}".strip()
                   if sal.get("min") and sal.get("max") else "")
@@ -408,7 +408,7 @@ def parse_breezy(company_id: str, payload: list) -> List[RawJob]:
             names.append(f"{n}, {country}" if country and country not in n else n)
         location = join_locations(names)
         if remote and "remote" not in location.lower():
-            location = f"Remote; {location}" if location else "Remote"
+            location = f"Remote - {location}" if location else "Remote"
         url = canonicalize_url(j.get("url", ""))
         out.append(RawJob(
             source="breezy", source_id=str(j.get("id", "")),

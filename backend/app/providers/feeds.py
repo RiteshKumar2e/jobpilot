@@ -102,7 +102,7 @@ def parse_arbeitnow(payload: dict) -> List[RawJob]:
         out.append(RawJob(
             source="arbeitnow", source_id=str(j.get("slug", "")), company=j.get("company_name", ""),
             title=(j.get("title") or "").strip(), description=strip_html(j.get("description", "")),
-            location=(f"Remote; {loc}" if remote and loc else "Remote" if remote else loc),
+            location=(f"Remote - {loc}" if remote and loc else "Remote" if remote else loc),
             work_mode="remote" if remote else infer_work_mode("", loc),
             employment_type=", ".join(j.get("job_types") or []),
             posted_at=iso_from_epoch(j.get("created_at")), job_url=url, application_url=url,

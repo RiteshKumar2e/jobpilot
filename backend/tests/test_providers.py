@@ -299,6 +299,21 @@ def test_profile_targets():
     assert not [t for t in profile_targets(sources, {"greenhouse"}) if t.provider != "greenhouse"]
 
 
+def test_remote_with_a_city_is_treated_as_country_limited(profile):
+    """ATS/feeds 'remote' + a city usually means remote in that country — it must
+    not pass as open-to-India (seen live: 'Fullstack Entwickler, Remote; Berlin')."""
+    from app.agents.verification import VerificationAgent
+    v = VerificationAgent(profile)
+    an = parse_arbeitnow({"data": [{"slug": "x", "company_name": "c", "title": "Backend Engineer",
+                                    "description": "Python", "remote": True, "location": "Berlin",
+                                    "url": "https://arbeitnow.com/x", "created_at": 1793170523}]})[0]
+    assert an.location == "Remote - Berlin" and v.verify(an).status == "REJECTED"
+    wk = parse_workable_list("huggingface", fx("workable_list.json"))[0]
+    assert wk.location.startswith("Remote - ") and v.verify(wk).status == "REJECTED"
+    india = an.model_copy(update={"location": "Remote - Bengaluru, India"})
+    assert v.verify(india).status == "VERIFIED"
+
+
 def test_helpers():
     assert strip_html("&lt;p&gt;Hi &amp;amp; bye&lt;/p&gt;") == "Hi & bye"
     assert parse_date("1793170523").year == 2026

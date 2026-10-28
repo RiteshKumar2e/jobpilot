@@ -335,7 +335,7 @@ cd backend
 .\.venv\Scripts\python.exe -m pytest -q
 ```
 
-95 tests. They cover:
+98 tests. They cover:
 
 - every provider parser, against payloads captured from the live APIs (`tests/fixtures/`);
 - pagination, the detail-request budget, title pre-filtering, and HTTP retry and give-up;
