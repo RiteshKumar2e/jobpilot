@@ -109,6 +109,20 @@ def test_onsite_or_hybrid_outside_india_rejected(profile):
         assert r.status == EligibilityStatus.REJECTED.value, loc
 
 
+def test_scam_listings_rejected(profile):
+    v = VerificationAgent(profile)
+    for desc in ("Freshers welcome. Pay a refundable security deposit of Rs 2000.",
+                 "Registration fee of 499 applies after selection.",
+                 "Send your resume on WhatsApp to 98xxxxxx.",
+                 "Join our Telegram channel t.me/jobs for the interview."):
+        r = v.verify(mk("Python Developer", desc, "Bengaluru, India", "onsite"))
+        assert r.status == EligibilityStatus.REJECTED.value and "scam" in r.reasons[0].lower(), desc
+    # building WhatsApp / Telegram products is a normal job
+    ok = v.verify(mk("Backend Engineer", "Build integrations with the WhatsApp Business API and "
+                     "Telegram bots in Python.", "Bengaluru, India", "onsite"))
+    assert ok.status == EligibilityStatus.VERIFIED.value
+
+
 def test_no_location_needs_review(profile):
     v = VerificationAgent(profile)
     r = v.verify(mk("AI Engineer", "Python.", "", ""))

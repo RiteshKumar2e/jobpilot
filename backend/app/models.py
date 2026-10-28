@@ -48,6 +48,22 @@ class ApplicationStatus(str, enum.Enum):
     REJECTED_BY_USER = "REJECTED_BY_USER"
 
 
+class Outcome(str, enum.Enum):
+    """After the application: recruiter reply → interview → offer (or a no)."""
+    RECRUITER_REPLY = "RECRUITER_REPLY"
+    ASSESSMENT = "ASSESSMENT"
+    INTERVIEW_INVITE = "INTERVIEW_INVITE"
+    INTERVIEW_BOOKED = "INTERVIEW_BOOKED"
+    INTERVIEW_DONE = "INTERVIEW_DONE"
+    OFFER = "OFFER"
+    REJECTED_BY_COMPANY = "REJECTED_BY_COMPANY"
+
+
+# Later outcomes win; an automatic update never moves a job backwards.
+OUTCOME_RANK = {"": 0, "RECRUITER_REPLY": 1, "ASSESSMENT": 2, "INTERVIEW_INVITE": 3,
+                "INTERVIEW_BOOKED": 4, "INTERVIEW_DONE": 5, "REJECTED_BY_COMPANY": 6, "OFFER": 7}
+
+
 # Strength ranking so we NEVER overwrite a strong status with a weaker/older one.
 APPLICATION_STATUS_RANK = {
     ApplicationStatus.NONE: 0,
@@ -101,6 +117,10 @@ class Job(Base):
     board: Mapped[str] = mapped_column(String(200), default="", index=True)   # ATS board / feed target
     dedup_key: Mapped[str] = mapped_column(String(300), default="", index=True)  # company|title|place
     last_seen_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    # what happened after applying (inbox agent / you): see Outcome
+    outcome: Mapped[str] = mapped_column(String(30), default="", index=True)
+    recruiter: Mapped[str] = mapped_column(String(200), default="")
+    outcome_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
 
     # verification
     eligibility_status: Mapped[str] = mapped_column(
@@ -270,6 +290,26 @@ class ProviderHealth(Base):
     jobs_total: Mapped[int] = mapped_column(Integer, default=0)
     duration_ms: Mapped[int] = mapped_column(Integer, default=0)
     disabled_until: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+
+
+class InboxMessage(Base):
+    """A job-related email the inbox agent read (read-only IMAP). Only messages
+    that look job-related are stored, and only a short snippet."""
+    __tablename__ = "inbox_messages"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    message_id: Mapped[str] = mapped_column(String(400), unique=True, index=True)
+    received_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    sender: Mapped[str] = mapped_column(String(300), default="")
+    subject: Mapped[str] = mapped_column(String(500), default="")
+    snippet: Mapped[str] = mapped_column(Text, default="")
+    category: Mapped[str] = mapped_column(String(30), default="", index=True)
+    job_id: Mapped[str] = mapped_column(String(40), default="", index=True)
+    links: Mapped[list] = mapped_column(JSON, default=list)       # booking / assessment links
+    draft_reply: Mapped[str] = mapped_column(Text, default="")   # never sent automatically
+    calendar_url: Mapped[str] = mapped_column(String(1200), default="")
+    handled: Mapped[bool] = mapped_column(Boolean, default=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=_utcnow)
 
 
 class KeyValue(Base):

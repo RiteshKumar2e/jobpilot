@@ -39,6 +39,17 @@ _DEFAULT_NON_TARGET_TITLES = ["support", "sales", "account", "operations", "peop
                               # data-labelling / content gigs that say "AI" in the title
                               "trainer", "annotation", "annotator", "tutor", "writer"]
 
+# Scam signals: real employers never charge candidates or move hiring to chat apps.
+# Phrases, not bare words — "WhatsApp Business API developer" is a real job.
+_SCAM_RE = re.compile(
+    r"\b(?:registration|training|joining|processing|application|security|kit|onboarding)"
+    r"\s+(?:fee|fees|charges?|deposit)\b"
+    r"|\bsecurity\s+deposit\b|\brefundable\s+deposit\b"
+    r"|\bpay\s+(?:a|the|an)?\s*(?:small\s+)?(?:fee|deposit|amount)\s+(?:to|for|before)\b"
+    r"|\b(?:contact|message|text|ping|dm|reach|apply|send\s+(?:your\s+)?(?:cv|resume))"
+    r"\s+(?:us|me|hr|the\s+recruiter)?\s*(?:on|via|over|through|to)\s+(?:whatsapp|telegram)\b"
+    r"|\bjoin\s+(?:our|the|my)\s+telegram\b|\bt\.me/", re.I)
+
 # A remote location that is open to candidates in India.
 _GLOBAL_REMOTE_RE = re.compile(
     r"\b(?:anywhere|worldwide|global|globally|international|apac|asia|asia[- ]pacific)\b")
@@ -62,6 +73,13 @@ class VerificationAgent:
         reasons: List[str] = []
         blob = f"{job.title}\n{job.description}".lower()
         title_l = job.title.lower()
+
+        # 0) Scam signals -> REJECT (fees/deposits, hiring moved to WhatsApp/Telegram)
+        m = _SCAM_RE.search(blob)
+        if m:
+            reasons.append(f"Looks like a scam: '{m.group(0).strip()}' — real jobs never "
+                           f"charge you or move hiring to chat apps.")
+            return VerificationResult(status=EligibilityStatus.REJECTED.value, reasons=reasons)
 
         # 1) Internship-only -> REJECT
         if self.ex.get("internship_only", True):

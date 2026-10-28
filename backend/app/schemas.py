@@ -83,6 +83,8 @@ class JobOut(BaseModel):
     notes: str = ""
     pipeline_stage: str
     board: str = ""
+    outcome: str = ""
+    recruiter: str = ""
     # derived (filled by the API): one readable state across eligibility,
     # pipeline and application status, every URL the job was seen at, and how
     # it can be applied to

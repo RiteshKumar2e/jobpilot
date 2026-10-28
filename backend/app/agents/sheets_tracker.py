@@ -26,6 +26,7 @@ PIPELINE_HEADERS = [
     "Missing Skills", "Resume Version", "Tailored Resume Path", "Cover Letter Path",
     "Application Status", "Submission Date", "Confirmation Reference",
     "Follow-up Date", "Last Checked", "Next Action", "Notes", "Eligibility Reasons",
+    "Outcome", "Recruiter", "Found On",
 ]
 HISTORY_HEADERS = ["Timestamp", "Job ID", "Company", "Job Title", "Attempt",
                    "Result", "Error", "Detail"]
@@ -148,7 +149,7 @@ class SheetsAgent:
         if not self._enabled or not jobs:
             return {"updated": 0, "added": 0}
         res = self._svc.spreadsheets().values().get(
-            spreadsheetId=self._sheet_id, range="Job Pipeline!A2:Z100000").execute()
+            spreadsheetId=self._sheet_id, range="Job Pipeline!A2:AD100000").execute()
         existing = {r[0]: (i, r) for i, r in enumerate(res.get("values", []), start=2) if r}
         updates, appends = [], []
         for job in jobs:
@@ -216,6 +217,8 @@ class SheetsAgent:
             job.confirmation_reference, job.follow_up_date,
             str(job.last_checked or "")[:19], job.next_action, (job.notes or "")[:500],
             " | ".join(job.eligibility_reasons or [])[:500],
+            getattr(job, "outcome", "") or "", getattr(job, "recruiter", "") or "",
+            getattr(job, "board", "") or "",
         ]
 
     def _ensure_tabs(self):

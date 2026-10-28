@@ -80,6 +80,32 @@ class NotifierAgent:
         log_event(db, level="info", agent=self.name, job_id=job.job_id,
                   message=f"Submission email {'sent' if sent else 'skipped'}: {job.title} @ {job.company}")
 
+    _INBOX_LABELS = {"interview": "📅 Interview invite", "assessment": "📝 Assessment",
+                     "offer": "🎉 Offer", "verification_code": "🔑 Security code needed",
+                     "rejection": "✗ Rejection", "application_received": "✓ Application received",
+                     "recruiter_reply": "✉ Recruiter reply"}
+
+    def inbox_alert(self, db, new: List[dict]) -> None:
+        """One email when the inbox agent finds something you should act on."""
+        important = [m for m in new if m["category"] in ("interview", "assessment", "offer",
+                                                         "verification_code", "recruiter_reply")]
+        if not important:
+            return
+        lines = [f"{len(important)} recruiter email(s) need you. Reply drafts and calendar "
+                 f"links are ready in the dashboard → Inbox (nothing was sent).", ""]
+        for m in important:
+            lines.append(f"{self._INBOX_LABELS.get(m['category'], m['category'])}: "
+                         f"{m['title'] + ' @ ' + m['company'] if m['company'] else m['subject']}")
+        lines += ["", "Sent by JobPilot AI."]
+        sent = self.send(f"JobPilot: {len(important)} recruiter email(s) need you", "\n".join(lines))
+        log_event(db, level="info", agent=self.name,
+                  message=f"Inbox alert {'sent' if sent else 'skipped'} ({len(important)})")
+
+    def weekly_review(self, db, text: str) -> None:
+        sent = self.send("JobPilot: your weekly review", text + "\n\nSent by JobPilot AI.")
+        log_event(db, level="info", agent=self.name,
+                  message=f"Weekly review email {'sent' if sent else 'skipped'}")
+
     def cycle_digest(self, db, needs_you: List[dict]) -> None:
         if not needs_you:
             return

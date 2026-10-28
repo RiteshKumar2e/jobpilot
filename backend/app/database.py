@@ -61,6 +61,9 @@ _ADDED_COLUMNS = [
     ("jobs", "board", "VARCHAR(200) DEFAULT ''"),
     ("jobs", "dedup_key", "VARCHAR(300) DEFAULT ''"),
     ("jobs", "last_seen_at", "DATETIME"),
+    ("jobs", "outcome", "VARCHAR(30) DEFAULT ''"),
+    ("jobs", "recruiter", "VARCHAR(200) DEFAULT ''"),
+    ("jobs", "outcome_at", "DATETIME"),
 ]
 
 

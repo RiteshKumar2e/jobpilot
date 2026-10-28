@@ -69,6 +69,13 @@ class Settings(BaseSettings):
     smtp_port: int = 465
     smtp_user: str = ""
     smtp_password: str = ""
+    # Inbox agent: reads Gmail READ-ONLY over IMAP with the same App Password
+    inbox_enabled: bool = True
+    imap_host: str = "imap.gmail.com"
+    inbox_lookback_days: int = 3
+    inbox_max_messages: int = 300
+    inbox_cron: str = "20 * * * *"          # every hour at :20 (UTC)
+    weekly_review_day: str = "sun"          # weekly review email
 
     # Discovery
     discovery_cron: str = "0 */6 * * *"
@@ -89,7 +96,7 @@ class Settings(BaseSettings):
 
     # LLM
     llm_provider: LLMProvider = LLMProvider.NONE
-    groq_model: str = "llama-3.3-70b-versatile"
+    groq_model: str = "openai/gpt-oss-120b"     # llama-3.3-70b-versatile was retired by Groq
     gemini_model: str = "gemini-2.5-flash"
 
     # Google

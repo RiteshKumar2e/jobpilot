@@ -20,6 +20,7 @@ from .agents.sheets_tracker import SheetsAgent
 from .api.deps import set_runtime
 from .api.routes import router
 from .api.sources_routes import router as sources_router
+from .api.coach_routes import router as coach_router
 
 settings = get_settings()
 configure_logging(settings.log_dir)
@@ -96,6 +97,7 @@ app.add_middleware(
 
 app.include_router(router)
 app.include_router(sources_router)
+app.include_router(coach_router)
 
 
 @app.get("/")

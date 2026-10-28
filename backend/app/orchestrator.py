@@ -31,6 +31,7 @@ from .agents.base import (canonicalize_url, dedup_key, log_event, make_job_id,
 from .agents.browser_apply import BrowserApplyAgent
 from .agents.discovery import DiscoveryAgent, summarize_report
 from .agents.followup import FollowupAgent
+from .agents.inbox import InboxAgent
 from .agents.materials import MaterialsAgent
 from .agents.matching import MatchingAgent
 from .agents.notifier import NotifierAgent
@@ -59,6 +60,7 @@ class Orchestrator:
                  enabled_agents: Optional[set] = None):
         self.settings = get_settings()
         self._run_lock = threading.Lock()
+        self._inbox_lock = threading.Lock()
         self.set_profile(load_profile())
         self.sheets = sheets or SheetsAgent()
         self.notifier = NotifierAgent()
@@ -67,7 +69,7 @@ class Orchestrator:
         # Any agent can be disabled (brief requirement).
         self.enabled = enabled_agents or {
             "discovery", "verification", "matching", "resume_intel",
-            "materials", "browser_apply", "sheets", "followup", "notifier"}
+            "materials", "browser_apply", "sheets", "followup", "notifier", "inbox"}
 
     def set_profile(self, profile) -> None:
         """(Re)build the profile-dependent agents so an edited profile takes
@@ -81,6 +83,7 @@ class Orchestrator:
         self.materials = MaterialsAgent(profile)
         self.browser = BrowserApplyAgent(profile)
         self.followup = FollowupAgent(profile)
+        self.inbox = InboxAgent(profile)
 
     def _read_profile_mtime(self) -> float:
         try:
@@ -217,6 +220,40 @@ class Orchestrator:
             Job.pipeline_stage != PipelineStage.DONE.value,
             Job.eligibility_status != EligibilityStatus.REJECTED.value)
             .order_by(Job.match_score.desc().nullslast())).all()
+
+    def check_inbox(self) -> dict:
+        """Hourly (scheduler) or on demand: recruiter replies → outcomes, drafts,
+        calendar links; one alert email when something needs you."""
+        if "inbox" not in self.enabled:
+            return {"skipped": "inbox agent disabled"}
+        if not self._inbox_lock.acquire(blocking=False):
+            return {"busy": True}
+        db = SessionLocal()
+        try:
+            self._refresh_profile()
+            stats = self.inbox.run(db)
+            if stats.get("new") and "notifier" in self.enabled:
+                self.notifier.inbox_alert(db, stats["new"])
+            if stats.get("matched"):
+                self._sync_sheets(db)
+            return {k: v for k, v in stats.items() if k != "new"}
+        except Exception as e:
+            log.warning(f"inbox check failed: {e}")
+            return {"error": str(e)[:200]}
+        finally:
+            db.close()
+            self._inbox_lock.release()
+
+    def send_weekly_review(self) -> dict:
+        from .coach import weekly_review, weekly_review_text
+        db = SessionLocal()
+        try:
+            r = weekly_review(db)
+            if "notifier" in self.enabled:
+                self.notifier.weekly_review(db, weekly_review_text(r))
+            return r
+        finally:
+            db.close()
 
     def _send_digest(self, db):
         if "notifier" in self.enabled and self._needs_you:
@@ -594,7 +631,8 @@ class Orchestrator:
                                      self._autosubmit_today(db), approved=approved)
         att.result = outcome.status
         att.error = outcome.error
-        att.detail = outcome.detail
+        # keep the screenshot with the attempt so you can spot-check what was sent
+        att.detail = {**(outcome.detail or {}), "screenshot": outcome.screenshot or ""}
         att.finished_at = datetime.now(timezone.utc)
         job.application_status = stronger_status(job.application_status, outcome.status)
         if outcome.status == ApplicationStatus.SUBMITTED_CONFIRMED.value:
@@ -727,6 +765,8 @@ def lifecycle_state(job: Job) -> str:
     DISCOVERED > VERIFIED > ELIGIBLE > SHORTLISTED > READY_FOR_REVIEW >
     ACTION_REQUIRED | SUBMITTED_CONFIRMED | SUBMISSION_UNVERIFIED | FAILED,
     or REJECTED / CLOSED / NEEDS_REVIEW."""
+    if job.outcome:          # what the company did after you applied
+        return job.outcome
     a = job.application_status
     if a in (ApplicationStatus.SUBMITTED_CONFIRMED.value, ApplicationStatus.SUBMISSION_UNVERIFIED.value,
              ApplicationStatus.ACTION_REQUIRED.value, ApplicationStatus.FAILED.value):

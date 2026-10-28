@@ -26,8 +26,25 @@ class JobScheduler:
         if self._sched.running:
             return
         self._add_discovery_job()
+        self._add_side_jobs()
         self._sched.start()
         log.info("Scheduler started", extra={"cron": self.settings.discovery_cron})
+
+    def _add_side_jobs(self):
+        """Inbox check (hourly) and the weekly review email — independent of the
+        discovery/apply cycle, so a long cycle never delays a recruiter reply."""
+        s = self.settings
+        try:
+            self._sched.add_job(self.orchestrator.check_inbox,
+                                CronTrigger.from_crontab(s.inbox_cron, timezone="UTC"),
+                                id="inbox_check", replace_existing=True, max_instances=1,
+                                coalesce=True)
+        except Exception as e:
+            log.warning(f"Bad inbox cron '{s.inbox_cron}': {e}")
+        self._sched.add_job(self.orchestrator.send_weekly_review,
+                            CronTrigger(day_of_week=s.weekly_review_day, hour=3, minute=30,
+                                        timezone="UTC"),        # 09:00 IST
+                            id="weekly_review", replace_existing=True, coalesce=True)
 
     def _add_discovery_job(self):
         try:

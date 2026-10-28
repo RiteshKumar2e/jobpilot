@@ -278,7 +278,8 @@ def test_migration_adds_columns_to_an_old_database(tmp_path):
                        "source VARCHAR(40), company VARCHAR(200), title VARCHAR(300))"))
         c.execute(text("INSERT INTO jobs (job_id, source, company, title) "
                        "VALUES ('a', 'greenhouse', 'acme', 'SE')"))
-    assert sorted(add_missing_columns(eng)) == ["jobs.board", "jobs.dedup_key", "jobs.last_seen_at"]
+    assert sorted(add_missing_columns(eng)) == ["jobs.board", "jobs.dedup_key", "jobs.last_seen_at",
+                                                "jobs.outcome", "jobs.outcome_at", "jobs.recruiter"]
     cols = {c["name"] for c in inspect(eng).get_columns("jobs")}
     assert {"board", "dedup_key", "last_seen_at"} <= cols
     with eng.begin() as c:                                      # old rows kept
