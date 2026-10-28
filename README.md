@@ -36,7 +36,7 @@ JobPilot discovers openings from companies' own job boards (Greenhouse, Lever, A
 - **Hands-free applying** — Greenhouse and Lever forms are filled and submitted automatically, up to a daily cap. Other sources are prepared and handed to you.
 - **Source health** — per-source run history, retries with backoff, and a circuit breaker. One broken source never stops the others.
 - **Your own resumes** — keep several role-specific variants in `data/resumes/`; the best one for each role is uploaded.
-- **Hard eligibility rules** — rejects senior roles, internships, roles needing more experience than you have, and onsite/hybrid jobs outside India (remote jobs anywhere are accepted).
+- **Hard eligibility rules** — rejects senior roles, internships, roles needing more experience than you have, off-target roles (support, sales, analyst, …), onsite/hybrid jobs outside India, and remote jobs limited to other countries.
 - **Transparent scoring** — 0–100 match score with a per-component breakdown.
 - **Email notifications** — one email per submitted application, plus a digest of applications that need your input.
 - **Google Sheets tracker** — pipeline, application history, interviews and a dashboard tab, kept in sync.
@@ -179,6 +179,15 @@ cd backend
 | `JOBPILOT_LLM_PROVIDER` | `groq` | `none`, `groq` or `gemini`. |
 | `GROQ_API_KEY` / `GEMINI_API_KEY` | | Only for the chosen provider. |
 | `JOBPILOT_DISCOVERY_CRON` | `0 */6 * * *` | How often the pipeline runs. |
+| `JOBPILOT_ENABLED_PROVIDERS` | `all` | Or a list, e.g. `greenhouse,lever,ashby,remotive`. |
+| `JOBPILOT_DISCOVERY_CONCURRENCY` | `6` | Sources fetched in parallel. |
+| `JOBPILOT_PROVIDER_TIMEOUT` | `20` | Seconds per request (3 tries with backoff on 429/5xx). |
+| `JOBPILOT_MAX_PAGES_PER_PROVIDER` | `5` | Pagination cap per source per run. |
+| `JOBPILOT_MAX_DETAILS_PER_TARGET` | `40` | Job-detail requests per board per run (Workable, SmartRecruiters, Workday). |
+| `JOBPILOT_MAX_JOBS_PER_CYCLE` | `4000` | Hard cap on listings ingested per run. |
+| `JOBPILOT_BREAKER_THRESHOLD` | `3` | Failures in a row before a source cools down (1 h, doubling, max 24 h; then retried). |
+| `JOBPILOT_AUTO_WATCH_DISCOVERED` | `true` | Poll company boards found inside other listings. |
+| `ADZUNA_APP_ID` / `ADZUNA_APP_KEY` | | Optional — [developer.adzuna.com](https://developer.adzuna.com). |
 
 `.env` is git-ignored. Never commit it.
 
@@ -197,7 +206,7 @@ candidate:
 Also review:
 
 - **`application_answers`** — standing answers to common form questions, matched by regex against the question text. Uncomment only the ones that are **true** for you (work authorization, sponsorship, notice period); each one unlocks many more automatic applications.
-- **`sources`** — the Greenhouse board tokens and Lever account names to watch. A company at `boards.greenhouse.io/acme` has token `acme`; one at `jobs.lever.co/acme` has account `acme`.
+- **`sources`** — boards, feeds and search queries (see [Job sources](#job-sources)). The board id is in the company's job URL: `boards.greenhouse.io/acme` → `acme`, `jobs.lever.co/acme` → `acme`, `jobs.ashbyhq.com/acme` → `acme`. Easiest: paste any job or careers link into **Companies → Add a company** and the platform and id are detected for you. `search_queries` drives the feeds, Workday and the portal search links.
 - **`target_roles`, `exclude`, `locations`** — what counts as a match.
 
 Profile edits take effect on the next run — no restart needed.
@@ -241,7 +250,7 @@ Set `JOBPILOT_RUN_ON_STARTUP=false` in `backend/.env` to wait for the schedule i
 Or manually:
 
 ```powershell
-cd backend;  .\.venv\Scripts\python.exe -m uvicorn app.main:app --host 127.0.0.1 --port 8000
+cd backend;  .\.venv\Scripts\python.exe -m uvicorn app.main:app --host 127.0.0.1 --port 8077
 cd frontend; npm run dev
 ```
 
@@ -285,11 +294,14 @@ The sheet **"JobPilot — Application Tracker"** is created in your Google Drive
 | View | What you can do |
 |---|---|
 | **Overview** | Totals: discovered, verified, shortlisted, submitted, rejected. |
-| **Jobs** | Every job with score and status; open one to see the resume and cover letter used, then **Approve** or **Reject**. |
+| **Jobs** | Unified search across every source. Filter by source, work mode, location, posting date, salary disclosed and score; sort by relevance, newest posting or salary. The tabs act as the application center: *Eligible*, *Ready / handoff*, *Needs you*, *Submitted ✓*, *Unverified*, *Rejected / closed*. Open a job to see every source it was found on, the resume and cover letter, why it was rejected, and **Approve** / **Open & apply yourself**. |
+| **Sources** | Every source with its type, status (active / degraded / failing / needs key / disabled / handoff), how it applies, last success, jobs found and eligible. Also: per-target health, **Test a source**, **Import a job URL**, and the portal search links. |
+| **Companies** | The company registry: platform, relevant open jobs, eligible jobs, careers link, how it was found. Add by URL, and watch or unwatch each company. |
+| **Monitoring** | Live counts, listings per source, duplicate rate, last run per source, source errors, jobs by state, recent discovery activity. |
 | **Activity & Logs** | Live event log of every agent and every application attempt. |
 | **Settings** | API key, schedule, pause/resume automation, reload profile. |
 
-Application statuses: `READY_FOR_REVIEW` → `SUBMITTED_CONFIRMED` (confirmation page seen) · `SUBMISSION_UNVERIFIED` (submitted, no confirmation page) · `ACTION_REQUIRED` (needs your input — you were emailed) · `FAILED`.
+Job states: `DISCOVERED` → `VERIFIED` → `ELIGIBLE` / `SHORTLISTED` → `READY_FOR_REVIEW` → `SUBMITTED_CONFIRMED` (confirmation page seen) · `SUBMISSION_UNVERIFIED` (submitted, no confirmation page) · `ACTION_REQUIRED` (needs your input; you were emailed) · `FAILED` · `REJECTED` · `CLOSED` (removed from the company's board) · `NEEDS_REVIEW`. All pages work at phone width.
 
 ---
 
@@ -310,6 +322,10 @@ An automatic submission happens only when **all** of these hold:
 
 JobPilot never bypasses anti-bot checks, never invents skills, experience or answers, never pays fees or signs anything, and makes one automatic attempt per job. A job that stopped only for a missing answer retries by itself after you update your profile.
 
+Duplicate protection: one job can be listed on several sources (stored in `job_sources`) but has one application status. Approving an already-submitted job is refused, and a cross-source copy of a job you've applied to is never turned into a new job.
+
+Compliance: only official or public endpoints are used, with a per-host request gap, retries only on 429/5xx, and bounded pages and concurrency. Remotive, Remote OK and Arbeitnow ask for attribution, so their links are kept. Portals that forbid automation are search-link and handoff only.
+
 ---
 
 ## Testing
@@ -319,7 +335,18 @@ cd backend
 .\.venv\Scripts\python.exe -m pytest -q
 ```
 
-Covers parsing, verification rules, scoring, resume selection, deduplication, status ordering, the auto-submit policy, LLM fallbacks and notifications. Tests use an isolated temporary database.
+95 tests. They cover:
+
+- every provider parser, against payloads captured from the live APIs (`tests/fixtures/`);
+- pagination, the detail-request budget, title pre-filtering, and HTTP retry and give-up;
+- ATS detection and JSON-LD careers pages;
+- failure isolation, the circuit breaker and its recovery, and company discovery;
+- cross-source dedup, including promotion to the ATS copy and never re-targeting an applied job;
+- closed-listing detection, job states, and the database migration;
+- the sources, companies, jobs-filter, import and portal-link endpoints, and approve-twice prevention;
+- the existing coverage: verification rules, scoring, resume selection, the auto-submit policy, LLM fallbacks and notifications.
+
+Tests use an isolated temporary database and no network.
 
 ---
 
@@ -331,7 +358,10 @@ jobpilot/
 │   ├── app/
 │   │   ├── agents/          # discovery, verification, matching, resume_intel, materials,
 │   │   │                    # browser_apply, sheets_tracker, followup, notifier
-│   │   ├── api/             # REST routes and auth
+│   │   ├── api/             # REST routes (routes.py, sources_routes.py) and auth
+│   │   ├── providers/       # job sources: base.py (interface, HTTP), ats.py, feeds.py,
+│   │   │                    # careers.py (JSON-LD + ATS detection), portals.py (handoff)
+│   │   ├── importer.py      # import one job by URL
 │   │   ├── llm/             # Groq / Gemini / rule-based providers
 │   │   ├── resume/          # resume parsing and tailoring
 │   │   ├── orchestrator.py  # pipeline, checkpoints, recovery
@@ -363,12 +393,44 @@ jobpilot/
 | No emails | `JOBPILOT_SMTP_PASSWORD` must be an App Password, not your Gmail password. Check Spam. |
 | Google "Access blocked" | Add your Gmail as a Test user (see [Google Sheets tracker](#google-sheets-tracker)). |
 | `No Python at '...'` from `.venv` | The project folder was moved; delete `backend\.venv` and run `run_backend.bat` again. |
+| A source shows **failing** / **degraded** | Open **Sources → Per-target health** for the error. `404` means a wrong board id (use **Test a source**). `429`/timeouts are temporary; the source cools down and is retried automatically. |
+| A board returns **0 jobs** | It may have no openings that pass the title filter (`exclude.title_must_match` / `senior_signals`). **Test a source** shows the count. SmartRecruiters fetches India postings only unless the id ends in `?all`. |
+| Adzuna shows **needs key** | Set `ADZUNA_APP_ID` and `ADZUNA_APP_KEY` in `backend/.env`, or set `adzuna: false` under `feeds`. |
+| Too many feed jobs | Narrow `search_queries`, turn feeds off under `sources.feeds`, or limit `JOBPILOT_ENABLED_PROVIDERS`. |
 
 ---
 
 ## Limitations
 
-- Only Greenhouse and Lever are supported. LinkedIn, Naukri and Indeed prohibit automation.
-- Essay-style questions and CAPTCHAs always require you; those applications are emailed rather than submitted.
-- Form layouts vary by company, so some applications will need a manual finish.
-- `SUBMISSION_UNVERIFIED` means the form was submitted but no confirmation page was detected — check your inbox for the company's email.
+- Automatic submission is tested only for Greenhouse and Lever. Other ATS forms are filled on your approval (best-effort), and feeds, careers pages and portals are handoff.
+- LinkedIn, Naukri, Indeed and similar portals are never scraped or automated; use the search links and URL import.
+- Not implemented: iCIMS, Oracle, SuccessFactors, Jobvite, BambooHR, Teamtailor, Comeet, Pinpoint and Rippling adapters, career sitemaps, and search-engine APIs.
+- Cross-source dedup matches on canonical URL or on company + normalized title + city. A copy listed under a different city name, or "Remote" vs. a city, can stay separate.
+- Breezy listings have no description, so they're verified on title and location only.
+- Essay-style questions, CAPTCHAs and emailed security codes always need you; those applications are emailed, not submitted.
+- `SUBMISSION_UNVERIFIED` means the form was submitted but no confirmation page was seen. Check your inbox; some forms email a security code you must enter.
+
+---
+
+## Adding a job source
+
+1. Write a provider in `backend/app/providers/` (ATS → `ats.py`, feed → `feeds.py`):
+
+   ```python
+   def parse_acmehr(board: str, payload: dict) -> list[RawJob]:   # pure, unit-tested
+       ...
+
+   class AcmeHRProvider(Provider):
+       name, kind, apply_mode = "acmehr", KIND_ATS, APPLY_ASSIST
+       notes = "Public careers JSON."
+       def fetch(self, target, ctx):
+           jobs = parse_acmehr(target.target, ctx.http.get_json(f"https://{target.target}.acmehr.com/jobs.json"))
+           return FetchResult(jobs=[j for j in jobs if ctx.title_ok(j.title)], complete=True)
+   ```
+
+   Set `complete=True` only when the response is the board's **full** open list; that's what lets removed jobs be marked closed.
+2. Register it in `PROVIDERS` and `SOURCE_KEYS` in `providers/__init__.py`. Add a URL pattern to `_ATS_PATTERNS` in `careers.py` so links to it are detected.
+3. Capture one real response into `backend/tests/fixtures/` (trimmed) and add a parser test to `tests/test_providers.py`.
+4. List boards in the profile (`acmehr_boards: [...]`) or add them from the Companies page.
+
+To add a **company**, paste its careers or job link into **Companies → Add a company**. No code is needed if it uses a supported ATS or publishes JSON-LD.
