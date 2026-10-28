@@ -110,7 +110,7 @@ class DiscoveryAgent:
                            max_details=s.max_details_per_target, title_ok=self.title_ok,
                            queries=search_queries(self.profile.raw().get("sources") or {}),
                            known=lambda src, sid: (src, sid) in known)
-        jobs: List[RawJob] = []
+        per_target: List[List[RawJob]] = []
         results: List[tuple] = []
         try:
             with ThreadPoolExecutor(max_workers=max(1, s.discovery_concurrency)) as ex:
@@ -125,10 +125,11 @@ class DiscoveryAgent:
                      "status": "error" if err else "ok", "error": err, "ms": ms,
                      "count": len(res.jobs) if res else 0,
                      "complete": bool(res and res.complete and not err),
-                     "source_ids": [j.source_id for j in res.jobs] if res else []}
+                     "source_ids": (list(res.listed_ids) if res and res.listed_ids is not None
+                                    else [j.source_id for j in res.jobs] if res else [])}
             report.append(entry)
             if res:
-                jobs.extend(res.jobs)
+                per_target.append(res.jobs)
             if db is not None:
                 self._record_health(db, health, t, entry)
             if err:
