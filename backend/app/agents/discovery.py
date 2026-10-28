@@ -1,155 +1,47 @@
-"""Agent 1 — Job Discovery.
+"""Agent 1 — Source Discovery (+ Company Discovery).
 
-Uses the OFFICIAL public job-board APIs (no scraping, no ToS violation):
-  - Greenhouse Job Board API: https://boards-api.greenhouse.io/v1/boards/{token}/jobs?content=true
-  - Lever Postings API:       https://api.lever.co/v0/postings/{account}?mode=json
+Polls every enabled job source through the provider layer (app/providers):
+company ATS boards (Greenhouse, Lever, Ashby, Workable, SmartRecruiters,
+Recruitee, Personio, Breezy, Workday), company careers pages (schema.org
+JobPosting), and public job feeds (Remotive, Remote OK, Arbeitnow, Himalayas,
+We Work Remotely, Adzuna).
 
-You list the company board tokens / lever accounts you care about in
-candidate_profile.yaml -> sources. The agent fetches, normalizes, and
-deduplicates. It NEVER asserts a listing is open without the fetch succeeding
-for that listing right now.
+  * Targets come from candidate_profile.yaml -> sources, plus the company
+    registry (companies you added in the dashboard or that were discovered).
+  * Sources run concurrently (bounded); one failing source never stops the rest.
+  * Every (source, target) run is recorded in provider_health. After
+    `breaker_threshold` consecutive failures a source cools down (1h, doubling,
+    max 24h) and is retried automatically afterwards.
+  * Company discovery: ATS boards linked from feed listings and careers pages
+    are added to the registry and polled from the next cycle.
 
-The parsing is unit-tested here against captured API shapes; the live HTTP call
-runs on your machine (this sandbox blocks outbound web hosts).
+It never asserts a listing is open without the fetch succeeding right now.
 """
 from __future__ import annotations
 
-import re
-from typing import List
+import time
+from concurrent.futures import ThreadPoolExecutor, as_completed
+from datetime import datetime, timedelta, timezone
+from typing import Dict, List, Optional
 
-import httpx
-from tenacity import retry, stop_after_attempt, wait_exponential, retry_if_exception_type
+from sqlalchemy import select
 
 from ..config import get_settings
 from ..logging_conf import get_logger
+from ..models import Company, Job, ProviderHealth
+from ..providers import PROVIDERS, find_ats_links, profile_targets, search_queries
+from ..providers.ats import parse_greenhouse, parse_lever  # noqa: F401  (public API, tests)
+from ..providers.base import FetchContext, FetchResult, Http, KIND_FEED, Target
+from ..providers.careers import detect_ats
 from ..schemas import RawJob
-from .base import canonicalize_url
+from .verification import _DEFAULT_TITLE_MUST_MATCH, _has_word
 
 log = get_logger("discovery")
 
-GREENHOUSE_URL = "https://boards-api.greenhouse.io/v1/boards/{token}/jobs?content=true"
-LEVER_URL = "https://api.lever.co/v0/postings/{account}?mode=json"
 
-_TAG_RE = re.compile(r"<[^>]+>")
-_WS_RE = re.compile(r"\s+")
-
-
-def _strip_html(text: str) -> str:
-    if not text:
-        return ""
-    text = _TAG_RE.sub(" ", text)
-    text = (text.replace("&amp;", "&").replace("&lt;", "<").replace("&gt;", ">")
-                .replace("&#39;", "'").replace("&quot;", '"').replace("&nbsp;", " "))
-    return _WS_RE.sub(" ", text).strip()
-
-
-_STRONG_REMOTE = ("fully remote", "100% remote", "remote-first", "remote first",
-                  "work from anywhere", "work from home", "this is a remote",
-                  "this role is remote", "this position is remote")
-
-
-def _infer_work_mode(text: str, location: str) -> str:
-    """The location field is authoritative; the description only counts for
-    unambiguous phrases (a passing 'remote-friendly team' mention doesn't)."""
-    loc = (location or "").lower()
-    if "remote" in loc or "anywhere" in loc:
-        return "remote"
-    if "hybrid" in loc:
-        return "hybrid"
-    desc = (text or "").lower()
-    if any(p in desc for p in _STRONG_REMOTE):
-        return "remote"
-    if "hybrid" in desc:
-        return "hybrid"
-    if location:
-        return "onsite"
-    return ""
-
-
-# ---- Pure parsers (unit-tested) ------------------------------------------- #
-def parse_greenhouse(board_token: str, payload: dict) -> List[RawJob]:
-    out: List[RawJob] = []
-    for j in payload.get("jobs", []):
-        content = _strip_html(j.get("content", ""))
-        location = (j.get("location") or {}).get("name", "")
-        url = canonicalize_url(j.get("absolute_url", ""))
-        out.append(RawJob(
-            source="greenhouse",
-            source_id=str(j.get("id", "")),
-            company=board_token,  # board token == company slug on Greenhouse
-            title=j.get("title", "").strip(),
-            description=content,
-            location=location,
-            work_mode=_infer_work_mode(content, location),
-            employment_type="",
-            experience_req="",
-            salary_range="",
-            posted_at=j.get("updated_at", "") or j.get("first_published", ""),
-            job_url=url,
-            application_url=url,  # greenhouse posting == application page
-            canonical_url=url,
-        ))
-    return out
-
-
-def parse_lever(account: str, payload: list) -> List[RawJob]:
-    out: List[RawJob] = []
-    for j in payload:
-        cats = j.get("categories", {}) or {}
-        desc = _strip_html(j.get("descriptionPlain") or j.get("description", ""))
-        all_locs = [l for l in (cats.get("allLocations") or []) if l]
-        location = "; ".join(all_locs) if len(all_locs) > 1 else cats.get("location", "")
-        # Lever's own workplaceType (remote|hybrid|onsite|unspecified) beats inference.
-        wpt = (j.get("workplaceType") or "").lower()
-        work_mode = wpt if wpt in ("remote", "hybrid", "onsite") else _infer_work_mode(desc, location)
-        url = canonicalize_url(j.get("hostedUrl", "") or j.get("applyUrl", ""))
-        out.append(RawJob(
-            source="lever",
-            source_id=str(j.get("id", "")),
-            company=account,
-            title=(j.get("text") or "").strip(),
-            description=desc,
-            location=location,
-            work_mode=work_mode,
-            employment_type=cats.get("commitment", ""),
-            experience_req="",
-            salary_range=(j.get("salaryRange") or {}).get("currency", "") and
-                         _lever_salary(j) or "",
-            posted_at=str(j.get("createdAt", "")),
-            job_url=url,
-            application_url=canonicalize_url(j.get("applyUrl", "") or url),
-            canonical_url=url,
-        ))
-    return out
-
-
-def _lever_salary(j: dict) -> str:
-    sr = j.get("salaryRange") or {}
-    if not sr:
-        return ""
-    mn, mx, cur = sr.get("min"), sr.get("max"), sr.get("currency", "")
-    if mn and mx:
-        return f"{cur} {mn:,}–{mx:,}".strip()
-    return ""
-
-
-# ---- Live fetchers (run on user's machine; sandbox blocks these hosts) ---- #
-class _Retryable(Exception):
-    pass
-
-
-@retry(reraise=True, stop=stop_after_attempt(3),
-       wait=wait_exponential(multiplier=1, min=1, max=8),
-       retry=retry_if_exception_type(_Retryable))
-def _get_json(client: httpx.Client, url: str):
-    try:
-        r = client.get(url)
-    except httpx.TransportError as e:
-        raise _Retryable(str(e))
-    if r.status_code in (429, 500, 502, 503, 504):
-        raise _Retryable(f"HTTP {r.status_code}")
-    r.raise_for_status()
-    return r.json()
+def _now() -> datetime:
+    # naive UTC: what SQLite DateTime columns round-trip as
+    return datetime.now(timezone.utc).replace(tzinfo=None)
 
 
 class DiscoveryAgent:
@@ -158,27 +50,197 @@ class DiscoveryAgent:
     def __init__(self, profile):
         self.profile = profile
         self.settings = get_settings()
+        self.last_report: List[dict] = []
+        raw = profile.raw()
+        ex = raw.get("exclude", {}) or {}
+        self._must = [w.lower() for w in (ex.get("title_must_match") or _DEFAULT_TITLE_MUST_MATCH)]
+        self._senior = [s.strip().lower() for s in (ex.get("senior_signals") or []) if s.strip()]
 
-    def discover(self) -> List[RawJob]:
+    # ---- relevance pre-filter (before anything is stored) ----------------- #
+    def title_ok(self, title: str) -> bool:
+        t = (title or "").lower()
+        if not any(_has_word(t, w) for w in self._must):
+            return False
+        return not (self.profile.exclude.get("senior_roles", True)
+                    and any(_has_word(t, s) for s in self._senior))
+
+    # ---- targets ----------------------------------------------------------- #
+    def targets(self, db=None) -> List[Target]:
+        enabled = self.settings.enabled_provider_set
+        sources = self.profile.raw().get("sources") or {}
+        out = profile_targets(sources, enabled)
+        if db is not None:
+            listed = {t.key for t in out}
+            for c in db.scalars(select(Company).where(Company.watch.is_(True))):
+                t = Target(c.provider, c.board, c.name)
+                if c.provider in enabled and c.provider in PROVIDERS and t.key not in listed:
+                    out.append(t)
+                    listed.add(t.key)
+            health = {h.key: h for h in db.scalars(select(ProviderHealth))}
+            for t in out:
+                h = health.get(t.key)
+                t.since = h.last_ok.replace(tzinfo=timezone.utc) if h and h.last_ok else None
+        return out
+
+    # ---- main entry -------------------------------------------------------- #
+    def discover(self, db=None) -> List[RawJob]:
+        s = self.settings
+        targets = self.targets(db)
+        health: Dict[str, ProviderHealth] = (
+            {h.key: h for h in db.scalars(select(ProviderHealth))} if db is not None else {})
+        now = _now()
+        runnable, report = [], []
+        for t in targets:
+            h = health.get(t.key)
+            if h and h.disabled_until and h.disabled_until > now:
+                report.append({"key": t.key, "provider": t.provider, "target": t.target,
+                               "status": "cooling_down", "until": str(h.disabled_until)})
+            elif not PROVIDERS[t.provider].configured():
+                report.append({"key": t.key, "provider": t.provider, "target": t.target,
+                               "status": "needs_key"})
+            else:
+                runnable.append(t)
+
+        known = set()
+        if db is not None:
+            known = {(a, b) for a, b in db.execute(
+                select(Job.source, Job.source_id).where(Job.description != ""))}
+        http = Http(timeout=s.provider_timeout)
+        ctx = FetchContext(http=http, max_pages=s.max_pages_per_provider,
+                           max_details=s.max_details_per_target, title_ok=self.title_ok,
+                           queries=search_queries(self.profile.raw().get("sources") or {}),
+                           known=lambda src, sid: (src, sid) in known)
         jobs: List[RawJob] = []
-        src = self.profile.sources
-        timeout = self.settings.http_timeout
-        headers = {"User-Agent": "JobPilot/0.1 (personal job search; contact via config)"}
-        with httpx.Client(timeout=timeout, headers=headers, follow_redirects=True) as client:
-            for token in src["greenhouse_boards"]:
-                try:
-                    data = _get_json(client, GREENHOUSE_URL.format(token=token))
-                    parsed = parse_greenhouse(token, data)
-                    jobs.extend(parsed)
-                    log.info("greenhouse fetched", extra={"board": token, "count": len(parsed)})
-                except Exception as e:
-                    log.warning(f"greenhouse fetch failed for {token}: {e}")
-            for account in src["lever_accounts"]:
-                try:
-                    data = _get_json(client, LEVER_URL.format(account=account))
-                    parsed = parse_lever(account, data)
-                    jobs.extend(parsed)
-                    log.info("lever fetched", extra={"account": account, "count": len(parsed)})
-                except Exception as e:
-                    log.warning(f"lever fetch failed for {account}: {e}")
+        results: List[tuple] = []
+        try:
+            with ThreadPoolExecutor(max_workers=max(1, s.discovery_concurrency)) as ex:
+                futs = {ex.submit(self._run_one, t, ctx): t for t in runnable}
+                for f in as_completed(futs):
+                    results.append((futs[f], *f.result()))
+        finally:
+            http.close()
+
+        for t, res, err, ms in results:
+            entry = {"key": t.key, "provider": t.provider, "target": t.target,
+                     "status": "error" if err else "ok", "error": err, "ms": ms,
+                     "count": len(res.jobs) if res else 0,
+                     "complete": bool(res and res.complete and not err),
+                     "source_ids": [j.source_id for j in res.jobs] if res else []}
+            report.append(entry)
+            if res:
+                jobs.extend(res.jobs)
+            if db is not None:
+                self._record_health(db, health, t, entry)
+            if err:
+                log.warning(f"{t.key} failed: {err}")
+            else:
+                log.info(f"{t.provider} fetched", extra={"target": t.target, "count": entry["count"]})
+        if db is not None:
+            db.commit()
+            self._register_companies(db, targets, results)
+
+        if len(jobs) > s.max_jobs_per_cycle:
+            log.warning(f"{len(jobs)} listings > max_jobs_per_cycle; keeping {s.max_jobs_per_cycle}")
+            jobs = jobs[: s.max_jobs_per_cycle]
+        self.last_report = report
         return jobs
+
+    @staticmethod
+    def _run_one(t: Target, ctx: FetchContext):
+        start = time.monotonic()
+        try:
+            res = PROVIDERS[t.provider].fetch(t, ctx)
+            return res, "", int((time.monotonic() - start) * 1000)
+        except Exception as e:  # isolate: report, never raise
+            return None, f"{type(e).__name__}: {e}"[:400], int((time.monotonic() - start) * 1000)
+
+    # ---- provider health / circuit breaker -------------------------------- #
+    def _record_health(self, db, health, t: Target, entry: dict) -> None:
+        h = health.get(t.key)
+        if h is None:
+            h = ProviderHealth(key=t.key, provider=t.provider, target=t.target)
+            db.add(h)
+            health[t.key] = h
+        now = _now()
+        h.last_run = now
+        h.total_runs = (h.total_runs or 0) + 1
+        h.duration_ms = entry["ms"]
+        if entry["status"] == "ok":
+            h.last_ok = now
+            h.consecutive_failures = 0
+            h.disabled_until = None
+            h.last_error = ""
+            h.jobs_last = entry["count"]
+            h.jobs_total = (h.jobs_total or 0) + entry["count"]
+        else:
+            h.consecutive_failures = (h.consecutive_failures or 0) + 1
+            h.total_failures = (h.total_failures or 0) + 1
+            h.last_error = entry["error"]
+            over = h.consecutive_failures - self.settings.breaker_threshold
+            if over >= 0:
+                h.disabled_until = now + timedelta(hours=min(24, 2 ** over))
+
+    # ---- company registry / discovery ------------------------------------- #
+    def _register_companies(self, db, targets: List[Target], results) -> None:
+        existing = {(c.provider, c.board.lower()) for c in db.scalars(select(Company))}
+
+        def add(provider, board, name, by, watch, url=""):
+            if (provider, board.lower()) in existing or provider not in PROVIDERS:
+                return False
+            existing.add((provider, board.lower()))
+            db.add(Company(provider=provider, board=board, name=name or board, watch=watch,
+                           discovered_by=by, careers_url=url))
+            return True
+
+        # profile-listed boards show up in the registry too
+        for t in targets:
+            if PROVIDERS[t.provider].kind != KIND_FEED:
+                add(t.provider, t.target, t.label, "profile", True,
+                    t.target if t.provider == "careers" else "")
+        # boards found inside other listings / careers pages
+        new = 0
+        cap = self.settings.max_new_companies_per_cycle
+        watch = self.settings.auto_watch_discovered
+        for t, res, err, _ in results:
+            if not res or err:
+                continue
+            found = list(res.discovered_boards)
+            if PROVIDERS[t.provider].kind == KIND_FEED:
+                for j in res.jobs:
+                    hit = detect_ats(j.application_url) or detect_ats(j.job_url)
+                    links = [hit] if hit else find_ats_links(j.description)[:1]
+                    found += [(p, b, j.company) for p, b in links]
+            for provider, board, name in found:
+                if new >= cap:
+                    break
+                if add(provider, board, name, f"{t.provider}:{t.target}"[:80], watch):
+                    new += 1
+                    log.info(f"Discovered company board {provider}:{board} via {t.provider}")
+            # remember how many relevant openings each registered board had
+            if PROVIDERS[t.provider].kind != KIND_FEED:
+                c = db.scalar(select(Company).where(Company.provider == t.provider,
+                                                    Company.board == t.target))
+                if c:
+                    c.open_jobs = len(res.jobs)
+        db.commit()
+
+
+def summarize_report(report: List[dict]) -> Dict[str, dict]:
+    """Per-provider totals for logs / the Sources page."""
+    out: Dict[str, dict] = {}
+    for r in report:
+        p = out.setdefault(r["provider"], {"targets": 0, "ok": 0, "errors": 0, "jobs": 0,
+                                           "cooling_down": 0, "needs_key": 0})
+        p["targets"] += 1
+        st = r["status"]
+        p["ok" if st == "ok" else "errors" if st == "error" else st] += 1
+        p["jobs"] += r.get("count", 0)
+    return out
+
+
+def remove_source_ids(report: List[dict]) -> List[dict]:
+    return [{k: v for k, v in r.items() if k != "source_ids"} for r in report]
+
+
+def get_target(report: List[dict], key: str) -> Optional[dict]:
+    return next((r for r in report if r["key"] == key), None)

@@ -1,0 +1,36 @@
+{
+ "id": 5851152,
+ "shortcode": "81B46579FE",
+ "title": "Open-Source Machine Learning Engineer - EMEA Remote",
+ "remote": true,
+ "location": {
+  "city": "Paris",
+  "country": "France",
+  "countryCode": "FR",
+  "region": "Île-de-France"
+ },
+ "locations": [
+  {
+   "city": "Paris",
+   "country": "France",
+   "countryCode": "FR",
+   "hidden": false,
+   "region": "Île-de-France"
+  }
+ ],
+ "state": "published",
+ "isInternal": false,
+ "code": "",
+ "published": "2026-05-29T00:00:00.000Z",
+ "type": "full",
+ "language": "en",
+ "department": [
+  "Open Source"
+ ],
+ "accountUid": "940cf17f-c078-40ac-95e8-07704e754048",
+ "approvalStatus": "approved",
+ "workplace": "remote",
+ "description": "<p></p><p>At Hugging Face, we're on a journey to democratize good AI. We are building the fastest growing platform for AI builders with over 11 million users who collectively shared over 4 million models, 1 million datasets &amp; 1.5 million Gradio apps. Our open-source libraries have more than 700,000 stars on Github.</p><h3>About the Role</h3><p>As an Open-Source Machine Learning Engineer, you'll work to improve the open-source machine learning ecosystem. You'll mainly work on existing open-source libraries such as Transformers, Datasets, Pytorch and vLLM, and you'll interact with users and ",
+ "requirements": "<p>Please provide a cover letter mentioning why you would like to work in open-source at Hugging Face. We encourage you to mention your skills, potential expertise, and topics on which you would like to work.</p>",
+ "benefits": ""
+}

@@ -1,0 +1,24 @@
+{
+ "total": 2000,
+ "jobPostings": [
+  {
+   "title": "Director, Engineering – Software Engineering",
+   "externalPath": "/job/Vietnam-Hanoi/Director--Engineering---Software-Engineering_JR2021061",
+   "locationsText": "2 Locations",
+   "postedOn": "Posted 30+ Days Ago",
+   "bulletFields": [
+    "JR2021061"
+   ]
+  },
+  {
+   "title": "Senior System Engineer, Solution Engineering",
+   "externalPath": "/job/Poland-Remote/Senior-System-Engineer--Solution-Engineering_JR2026094",
+   "locationsText": "3 Locations",
+   "postedOn": "Posted 9 Days Ago",
+   "bulletFields": [
+    "JR2026094"
+   ]
+  }
+ ],
+ "userAuthenticated": false
+}

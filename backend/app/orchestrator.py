@@ -26,9 +26,10 @@ from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
-from .agents.base import (canonicalize_url, log_event, make_job_id, stronger_status)
+from .agents.base import (canonicalize_url, dedup_key, log_event, make_job_id,
+                          stronger_status)
 from .agents.browser_apply import BrowserApplyAgent
-from .agents.discovery import DiscoveryAgent
+from .agents.discovery import DiscoveryAgent, summarize_report
 from .agents.followup import FollowupAgent
 from .agents.materials import MaterialsAgent
 from .agents.matching import MatchingAgent
@@ -40,9 +41,11 @@ from .config import ApprovalMode, get_settings
 from .database import SessionLocal
 from .logging_conf import get_logger
 from .models import (AgentRun, ApplicationAttempt, ApplicationStatus,
-                     EligibilityStatus, Event, Job, KeyValue, PipelineStage,
+                     EligibilityStatus, Event, Job, JobSource, KeyValue, PipelineStage,
                      ResumeVersion)
 from .profile_loader import load_profile
+from .providers import PROVIDERS
+from .providers.base import APPLY_ASSIST, APPLY_AUTO
 from .schemas import RawJob
 
 log = get_logger("orchestrator")
@@ -124,6 +127,7 @@ class Orchestrator:
             stats["discovered"] = len(raw)
             new_or_updated = self._ingest_dedup(db, raw)
             stats["new"] = sum(1 for x in new_or_updated if x[1])
+            stats["closed"] = self._close_missing(db)
             # process each job through the remaining stages (resumable)
             done_ids = set()
             for job, _is_new in new_or_updated:
@@ -225,58 +229,172 @@ class Orchestrator:
             return []
         ar = self._start_run(db, "discovery", run_id)
         try:
-            raw = injected if injected is not None else self.discovery.discover()
+            if injected is not None:
+                raw = injected
+                self.discovery.last_report = []
+            else:
+                raw = self.discovery.discover(db)
             self._finish_run(db, ar, items_out=len(raw))
+            summary = summarize_report(self.discovery.last_report)
+            failed = sum(p["errors"] for p in summary.values())
             log_event(db, level="info", agent="discovery",
-                      message=f"Discovered {len(raw)} raw listings")
+                      message=f"Discovered {len(raw)} raw listings from "
+                              f"{sum(p['ok'] for p in summary.values())} sources"
+                              + (f" ({failed} failed)" if failed else ""),
+                      data={"providers": summary})
+            self._set_kv(db, "last_discovery", {"at": _now_iso(), "providers": summary})
             return raw
         except Exception as e:
             self._finish_run(db, ar, error=str(e))
             return []
 
     def _ingest_dedup(self, db, raw: List[RawJob]):
-        """Insert/update jobs idempotently. Dedup by job_id (source+id|url) and
-        by (company,title) + canonical_url."""
+        """Insert/update jobs idempotently, merging cross-source duplicates.
+
+        Lookup order for each listing:
+          1. same source + id      -> that job (refresh it)
+          2. a source row alias    -> the job it was merged into earlier
+          3. same canonical URL or same company|title|place from ANOTHER
+             source                -> the same opening: record the extra source,
+                                      fill blanks only, never a second job
+        So a role listed on Remotive, Himalayas and the company's Greenhouse
+        board is one job with three sources and at most one application."""
         results = []
-        seen_keys = set()
+        seen_jids, seen_jobs = set(), set()
+        now = datetime.now(timezone.utc).replace(tzinfo=None)
         for rj in raw:
             canon = canonicalize_url(rj.canonical_url or rj.job_url)
             jid = make_job_id(rj.source, rj.source_id, canon)
-            # within-batch dedup
-            dedup_key = (rj.company.lower(), rj.title.lower(), canon)
-            if jid in seen_keys or dedup_key in seen_keys:
+            if jid in seen_jids:
                 continue
-            seen_keys.add(jid); seen_keys.add(dedup_key)
-
+            seen_jids.add(jid)
+            dkey = dedup_key(rj.company, rj.title, rj.location)
             try:
-                job = db.scalar(select(Job).where(Job.job_id == jid))
+                job, how = self._find_existing(db, jid, canon, dkey, rj.source)
                 is_new = job is None
                 if is_new:
                     job = Job(job_id=jid, source=rj.source, source_id=rj.source_id,
-                              canonical_url=canon)
+                              canonical_url=canon, board=rj.board, dedup_key=dkey)
                     db.add(job)
-                # update descriptive fields (safe to refresh)
-                job.company = rj.company or job.company
-                job.title = rj.title or job.title
-                job.description = rj.description or job.description
-                job.location = rj.location or job.location
-                job.work_mode = rj.work_mode or job.work_mode
-                job.employment_type = rj.employment_type or job.employment_type
-                job.experience_req = rj.experience_req or job.experience_req
-                job.salary_range = rj.salary_range or job.salary_range
-                job.posted_at = rj.posted_at or job.posted_at
-                job.job_url = rj.job_url or job.job_url
-                job.application_url = rj.application_url or job.application_url
+                if how == "duplicate":
+                    self._merge_duplicate(job, rj, canon)
+                else:
+                    # own listing: descriptive fields are safe to refresh
+                    job.company = rj.company or job.company
+                    job.title = rj.title or job.title
+                    job.description = rj.description or job.description
+                    job.location = rj.location or job.location
+                    job.work_mode = rj.work_mode or job.work_mode
+                    job.employment_type = rj.employment_type or job.employment_type
+                    job.experience_req = rj.experience_req or job.experience_req
+                    job.salary_range = rj.salary_range or job.salary_range
+                    job.posted_at = rj.posted_at or job.posted_at
+                    job.job_url = rj.job_url or job.job_url
+                    job.application_url = rj.application_url or job.application_url
+                    job.board = rj.board or job.board
+                    job.dedup_key = dedup_key(job.company, job.title, job.location) or job.dedup_key
+                job.last_seen_at = now
+                db.flush()
+                self._link_source(db, job, jid, rj, now)
                 db.commit()
             except IntegrityError:
                 # Inserted concurrently (another process/run) — skip, don't kill the cycle.
                 db.rollback()
                 continue
+            if job.job_id in seen_jobs:
+                continue  # a second portal's copy of a job already in this batch
+            seen_jobs.add(job.job_id)
             results.append((job, is_new))
         return results
 
+    def _find_existing(self, db, jid, canon, dkey, source):
+        job = db.scalar(select(Job).where(Job.job_id == jid))
+        if job:
+            return job, "own"
+        link = db.scalar(select(JobSource).where(JobSource.source_job_id == jid))
+        if link:
+            job = db.scalar(select(Job).where(Job.job_id == link.job_id))
+            if job:
+                return job, "own" if job.source == source else "duplicate"
+            db.delete(link)  # its job was deleted; forget the alias
+        # Same canonical URL / same company|title|place from a DIFFERENT source.
+        # (Two postings on one board with the same title are distinct openings.)
+        for cond in ((Job.canonical_url == canon) if canon else None,
+                     (Job.dedup_key == dkey) if dkey else None):
+            if cond is None:
+                continue
+            job = db.scalar(select(Job).where(cond, Job.source != source)
+                            .order_by(Job.discovered_at))
+            if job:
+                return job, "duplicate"
+        return None, "new"
+
+    @staticmethod
+    def _merge_duplicate(job: Job, rj: RawJob, canon: str) -> None:
+        """Another portal listed this job. Fill gaps only — and if the job so far
+        came from a feed we can't apply through while this copy is the company's
+        own ATS posting (and nothing was applied yet), switch to the ATS copy."""
+        for f in ("description", "location", "work_mode", "employment_type",
+                  "experience_req", "salary_range", "posted_at"):
+            if not getattr(job, f) and getattr(rj, f):
+                setattr(job, f, getattr(rj, f))
+        rank = {APPLY_AUTO: 3, APPLY_ASSIST: 2}
+        cur = PROVIDERS.get(job.source)
+        new = PROVIDERS.get(rj.source)
+        if (new and job.application_status == ApplicationStatus.NONE.value
+                and rank.get(new.apply_mode, 1) > rank.get(cur.apply_mode if cur else "", 1)):
+            job.source, job.source_id, job.board = rj.source, rj.source_id, rj.board
+            job.company = rj.company or job.company
+            job.job_url = rj.job_url or job.job_url
+            job.application_url = rj.application_url or job.application_url
+            job.canonical_url = canon or job.canonical_url
+            if rj.description:
+                job.description = rj.description
+
+    @staticmethod
+    def _link_source(db, job: Job, jid: str, rj: RawJob, now) -> None:
+        link = db.scalar(select(JobSource).where(JobSource.source_job_id == jid))
+        if link:
+            link.last_seen = now
+            link.url = rj.job_url or link.url
+            if link.job_id != job.job_id:
+                link.job_id = job.job_id
+        else:
+            db.add(JobSource(job_id=job.job_id, source_job_id=jid, source=rj.source,
+                             url=rj.job_url or rj.application_url, first_seen=now, last_seen=now))
+
+    def _close_missing(self, db) -> int:
+        """Listing verification: a board fetched COMPLETELY this run that no
+        longer lists a job means the job closed. Mark it EXPIRED so it's never
+        applied to. Feeds/search results never close anything (absence there
+        proves nothing), and an empty response never closes a whole board."""
+        closed = 0
+        open_statuses = [ApplicationStatus.NONE.value, ApplicationStatus.DRAFTED.value,
+                         ApplicationStatus.READY_FOR_REVIEW.value,
+                         ApplicationStatus.ACTION_REQUIRED.value]
+        for r in self.discovery.last_report:
+            if not r.get("complete") or r.get("status") != "ok" or not r.get("source_ids"):
+                continue
+            listed = set(r["source_ids"])
+            for job in db.scalars(select(Job).where(
+                    Job.source == r["provider"], Job.board == r["target"],
+                    Job.application_status.in_(open_statuses),
+                    Job.eligibility_status != EligibilityStatus.EXPIRED.value)):
+                if job.source_id not in listed:
+                    job.eligibility_status = EligibilityStatus.EXPIRED.value
+                    job.eligibility_reasons = ["Listing no longer on the company's board (closed)."]
+                    job.pipeline_stage = PipelineStage.DONE.value
+                    job.next_action = "Closed — removed from the company's job board."
+                    closed += 1
+        db.commit()
+        if closed:
+            log_event(db, level="info", agent="verification",
+                      message=f"{closed} listing(s) closed (no longer on their boards)")
+        return closed
+
     def _process_job(self, db: Session, job: Job, stats: dict) -> None:
         """Advance one job through the pipeline from its current checkpoint."""
+        job_id = job.job_id   # readable even if the session breaks below
         try:
             stage = PipelineStage(job.pipeline_stage)
             # Finished jobs (submitted, rejected, below threshold, ...) are never
@@ -366,9 +484,9 @@ class Orchestrator:
                 db.commit()
         except Exception as e:
             stats["errors"] = stats.get("errors", 0) + 1
+            db.rollback()   # first, or logging hits the failed transaction too
             log_event(db, level="error", agent="orchestrator",
-                      message=f"process_job failed: {e}", job_id=job.job_id)
-            db.rollback()
+                      message=f"process_job failed: {e}", job_id=job_id)
 
     def _apply_stage(self, db, job, mats, stats):
         """Decide between draft (Mode A) and auto-submit (Mode B). Never submits
@@ -394,7 +512,19 @@ class Orchestrator:
         if not allow:
             job.application_status = stronger_status(job.application_status,
                                                      ApplicationStatus.READY_FOR_REVIEW.value)
-            job.next_action = f"Auto-submit blocked: {why}"
+            if self._is_handoff(job):
+                # Mode 3 — handoff: this source doesn't allow automated submission.
+                # Resume + cover letter are ready; email you the link once.
+                if not (job.next_action or "").startswith("Apply yourself"):
+                    self._needs_you.append({
+                        "title": job.title, "company": job.company,
+                        "why": f"Apply yourself — {job.source} has no automated submission. "
+                               f"Resume: {job.recommended_resume_version or 'see dashboard'}.",
+                        "missing": [], "url": job.application_url or job.job_url})
+                job.next_action = (f"Apply yourself on {job.source} (prepared resume + cover "
+                                   f"letter in the dashboard).")
+            else:
+                job.next_action = f"Auto-submit blocked: {why}"
             db.commit()
             return
         if self._waiting_for_answers(db, job):
@@ -412,6 +542,14 @@ class Orchestrator:
         # Anything that needs you is emailed; retry it with Approve.
         job.pipeline_stage = PipelineStage.DONE.value
         db.commit()
+
+    def _is_handoff(self, job) -> bool:
+        """Verified and good enough to apply to, but its source isn't on the
+        auto-apply allowlist (feeds, portal imports, ATS without auto-submit)."""
+        s = self.settings
+        return (job.source.lower() not in s.auto_apply_sources
+                and job.eligibility_status == EligibilityStatus.VERIFIED.value
+                and (job.match_score or 0) >= s.min_autosubmit_score)
 
     def _waiting_for_answers(self, db, job) -> bool:
         """True when the last attempt stopped on unanswered questions and the
@@ -581,6 +719,35 @@ def _job_to_rawdict(job: Job) -> dict:
         "posted_at": job.posted_at, "job_url": job.job_url,
         "application_url": job.application_url, "canonical_url": job.canonical_url,
     }
+
+
+def lifecycle_state(job: Job) -> str:
+    """One readable state per job, derived from eligibility + score + application
+    status (stored separately so nothing existing had to be migrated):
+    DISCOVERED > VERIFIED > ELIGIBLE > SHORTLISTED > READY_FOR_REVIEW >
+    ACTION_REQUIRED | SUBMITTED_CONFIRMED | SUBMISSION_UNVERIFIED | FAILED,
+    or REJECTED / CLOSED / NEEDS_REVIEW."""
+    a = job.application_status
+    if a in (ApplicationStatus.SUBMITTED_CONFIRMED.value, ApplicationStatus.SUBMISSION_UNVERIFIED.value,
+             ApplicationStatus.ACTION_REQUIRED.value, ApplicationStatus.FAILED.value):
+        return a
+    if a == ApplicationStatus.REJECTED_BY_USER.value:
+        return "REJECTED"
+    if a in (ApplicationStatus.READY_FOR_REVIEW.value, ApplicationStatus.DRAFTED.value,
+             ApplicationStatus.APPROVED.value):
+        return ApplicationStatus.READY_FOR_REVIEW.value
+    e = job.eligibility_status
+    if e == EligibilityStatus.EXPIRED.value:
+        return "CLOSED"
+    if e == EligibilityStatus.REJECTED.value:
+        return "REJECTED"
+    if e == EligibilityStatus.NEEDS_REVIEW.value:
+        return "NEEDS_REVIEW"
+    if e == EligibilityStatus.VERIFIED.value:
+        if job.match_score is None:
+            return "VERIFIED"
+        return "SHORTLISTED" if job.match_score >= SHORTLIST_THRESHOLD else "ELIGIBLE"
+    return "DISCOVERED"
 
 
 def compute_stats(db: Session) -> dict:

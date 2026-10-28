@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0" xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:media="http://search.yahoo.com/mrss">
+  <channel>
+    <title>We Work Remotely: Remote jobs in design, programming, marketing and more</title>
+    <link>https://weworkremotely.com/categories/remote-programming-jobs.rss</link>
+    <description>We Work Remotely: Remote jobs in design, programming, marketing and more</description>
+    <language>en-US</language>
+    <ttl>60</ttl>
+    <item>
+      <title>Jumio: Machine Learning Engineer</title>
+      <region>Anywhere in the World</region>
+      <category>Full-Stack Programming</category>
+      <description>
+
+&lt;p&gt;
+  &lt;strong&gt;Headquarters:&lt;/strong&gt; Austria (remote)
+&lt;/p&gt;
+
+&lt;h2&gt;&lt;strong&gt;Machine Learning Engineer&amp;nbsp;&lt;/strong&gt;&lt;/h2&gt;
+&lt;p&gt;We’re looking for a Machine Learning Engineer with deep expertise in computer vision and biometrics to lead the design and scaling of face recognition systems in production. You’ll build and train models, and own ML systems end-to-end on AWS. The final job level for this role will be determined following the interview process.&lt;/p&gt;
+&lt;h3&gt;&lt;strong&gt;What You’ll Do&lt;/strong&gt;&lt;/h3&gt;
+&lt;ul&gt;
+&lt;...</description>
+      <pubDate>Thu, 08 Oct 2026 07:31:21 +0000</pubDate>
+      <guid>https://weworkremotely.com/remote-jobs/jumio-machine-learning-engineer</guid>
+      <link>https://weworkremotely.com/remote-jobs/jumio-machine-learning-engineer</link>
+    </item>
+<item>
+      <title>Abnormal: Director of Security Engineering</title>
+      <region>Anywhere in the World</region>
+      <category>Full-Stack Programming</category>
+      <description>
+
+&lt;p&gt;
+  &lt;strong&gt;Headquarters:&lt;/strong&gt; Remote - USA
+&lt;/p&gt;
+
+&lt;h2&gt;About the Role&lt;/h2&gt;
+&lt;p&gt;Abnormal AI protects organizations from the most sophisticated email and collaboration attacks using behavioral AI. Security is not a bolt-on at Abnormal; it is core to the product we sell and the trust our customers place in us. Our security organization operates a commercial cloud environment and a separate FedRAMP-authorized environment, and we are pursuing increasingly rigorous federal authorizations as we grow.&lt;/p&gt;
+&lt;p&gt;We are hiring a Director of Securi...</description>
+      <pubDate>Thu, 08 Oct 2026 07:31:00 +0000</pubDate>
+      <guid>https://weworkremotely.com/remote-jobs/abnormal-director-of-security-engineering</guid>
+      <link>https://weworkremotely.com/remote-jobs/abnormal-director-of-security-engineering</link>
+    </item>
+</channel>
+</rss>

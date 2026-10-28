@@ -49,6 +49,58 @@ def canonicalize_url(url: str) -> str:
     return url.rstrip("/")
 
 
+# ---- cross-source dedup keys ---------------------------------------------- #
+_COMPANY_SUFFIXES = ("privatelimited", "pvtltd", "limited", "ltd", "inc", "llc", "corp",
+                     "corporation", "gmbh", "technologies", "technology", "software",
+                     "labs", "india", "hq", "co")
+_CITY_ALIASES = {"bangalore": "bengaluru", "gurgaon": "gurugram", "bombay": "mumbai",
+                 "new delhi": "delhi", "madras": "chennai", "calcutta": "kolkata",
+                 "cochin": "kochi", "trivandrum": "thiruvananthapuram", "mysore": "mysuru"}
+
+
+def normalize_company(name: str) -> str:
+    """'Razorpay Software Private Limited' / 'razorpaysoftwareprivatelimited' /
+    'Razorpay' -> 'razorpay'."""
+    s = re.sub(r"[^a-z0-9]", "", (name or "").lower())
+    changed = True
+    while changed and s:
+        changed = False
+        for suf in _COMPANY_SUFFIXES:
+            if s.endswith(suf) and len(s) > len(suf) + 2:
+                s, changed = s[: -len(suf)], True
+    return s
+
+
+def normalize_title(title: str) -> str:
+    t = (title or "").lower()
+    t = re.sub(r"\(.*?\)|\[.*?\]", " ", t)                 # "(Remote)", "[India]"
+    t = re.sub(r"\b(sr|jr)\b\.?", lambda m: {"sr": "senior", "jr": "junior"}[m.group(1)], t)
+    t = re.sub(r"[^a-z0-9+#]+", " ", t)
+    return " ".join(t.split())
+
+
+def normalize_place(location: str) -> str:
+    """First concrete place in a location string, aliases merged; 'remote' if
+    the role is remote without a city."""
+    loc = (location or "").lower()
+    m = _INDIA_RE.search(loc)
+    if m:
+        city = m.group(1).lower()
+        return _CITY_ALIASES.get(city, city)
+    first = re.split(r"[;|,/(]", loc)[0].strip()
+    first = re.sub(r"[^a-z ]", "", first).strip()
+    return _CITY_ALIASES.get(first, first) or ("remote" if "remote" in loc else "")
+
+
+def dedup_key(company: str, title: str, location: str) -> str:
+    """Same company + same normalized title + same place = the same opening,
+    whichever portal listed it."""
+    c, t = normalize_company(company), normalize_title(title)
+    if not c or not t:
+        return ""
+    return f"{c}|{t}|{normalize_place(location)}"
+
+
 def log_event(db: Session, *, level: str, agent: str, message: str,
               job_id: str = "", data: dict | None = None) -> None:
     db.add(Event(level=level, agent=agent, message=message,

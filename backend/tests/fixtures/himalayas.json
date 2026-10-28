@@ -1,0 +1,96 @@
+{
+ "comments": "21/08/2026: Cursor pagination is now available and is the preferred way to page through the feed. Pass the nextCursor value from each response back as ?cursor=. It is faster than offset and will never return the same job twice. The offset parameter is deprecated and will be removed in a future release. 13/03/2026: The API has been updated to include the companySlug field in the response.",
+ "updatedAt": 1793172005,
+ "offset": 0,
+ "limit": 3,
+ "totalCount": 131282,
+ "nextCursor": "MjAyNi0xMC0yOFQwNzoxOTo1NS4yOTQ0NDlafDI0NzQ0Nzg",
+ "jobs": [
+  {
+   "title": "Governance, Risk and Compliance (GRC) Analyst",
+   "excerpt": "Governance, Risk & Compliance (GRC) AnalystLocation: EMEA/UK RemoteSummary of RoleNasuni is looking for a Governance, Risk & Compliance (GRC) Analyst to help operate and strengthen the programs that support our security, compliance, and risk posture.",
+   "companyName": "Nasuni",
+   "companySlug": "nasuni",
+   "companyLogo": "https://cdn-images.himalayas.app/ujw6z1pz0lmx3b5fsvfcbg4jq5cz",
+   "employmentType": "Full Time",
+   "minSalary": null,
+   "maxSalary": null,
+   "salaryPeriod": "annual",
+   "seniority": [
+    "Mid-level"
+   ],
+   "currency": null,
+   "locationRestrictions": [
+    "United Kingdom"
+   ],
+   "timezoneRestrictions": [
+    0
+   ],
+   "categories": [
+    "Risk-and-Compliance-(GRC)-Analyst",
+    "GRC-Analyst",
+    "Compliance-Analyst",
+    "Risk-Analyst",
+    "IT-Audit-Analyst",
+    "Risk-And-Compliance-Analyst",
+    "GRC-Analyst-Jobs",
+    "Risk-Compliance-Analyst",
+    "Compliance-Risk-Analyst",
+    "Risk-and-Controls-Analyst",
+    "Compliance-and-Regulatory-Analyst",
+    "Governance-Risk-and-Compliance-(GRC)"
+   ],
+   "parentCategories": [
+    "Developer",
+    "Legal"
+   ],
+   "description": "<h3>Governance, Risk &amp; Compliance (GRC) Analyst</h3><h3>Location: EMEA/UK Remote</h3><h3>Summary of Role</h3><p><a href=\"https://himalayas.app/companies/nasuni\">Nasuni</a> is looking for a Governance, Risk &amp; Compliance (GRC) Analyst to help operate and strengthen the programs that support our security, compliance, and risk posture.<br>You will take hands-on ownership of defined GRC workflows including third-party risk assessments, customer security requests, security awareness activities, and user access reviews. You will also support audits, enterprise risk management, policy governan",
+   "pubDate": 1793172005,
+   "expiryDate": 1798356003,
+   "applicationLink": "https://himalayas.app/companies/nasuni/jobs/governance-risk-and-compliance-grc-analyst?utm_source=api",
+   "guid": "https://himalayas.app/companies/nasuni/jobs/governance-risk-and-compliance-grc-analyst"
+  },
+  {
+   "title": "Lead Product Manager, Member Experience",
+   "excerpt": "Sidecar Health is redefining health insurance.  Our mission is to make excellent healthcare affordable and attainable for everyone.",
+   "companyName": "Sidecar Health",
+   "companySlug": "sidecar-health",
+   "companyLogo": "https://cdn-images.himalayas.app/647ysa3hsoq7hdlgco4jkde0yzp4",
+   "employmentType": "Full Time",
+   "minSalary": 200000,
+   "maxSalary": 220000,
+   "salaryPeriod": "annual",
+   "seniority": [
+    "Senior"
+   ],
+   "currency": "USD",
+   "locationRestrictions": [
+    "United States"
+   ],
+   "timezoneRestrictions": [
+    -10,
+    -9,
+    -8,
+    -7,
+    -6,
+    -5,
+    14
+   ],
+   "categories": [
+    "Product-Manager",
+    "Product-Strategy-Manager",
+    "Member-Experience-Product-Manager",
+    "Member-Product-Management",
+    "Member-Facing-Product-Management"
+   ],
+   "parentCategories": [
+    "Product"
+   ],
+   "description": "<p><a href=\"https://himalayas.app/companies/sidecar-health\">Sidecar Health</a> is redefining health insurance. Our mission is to make excellent healthcare affordable and attainable for everyone. We know that to accomplish this lofty mission, we need driven people who will make things happen.</p><p>The passionate people who make up <a href=\"https://himalayas.app/companies/sidecar-health\">Sidecar Health</a>’s team come from all over, with backgrounds as tech leaders, policy makers, healthcare professionals, and beyond. And they all have one thing in common—the desire to fix a broken system and m",
+   "pubDate": 1793171996,
+   "expiryDate": 1798355994,
+   "applicationLink": "https://himalayas.app/companies/sidecar-health/jobs/lead-product-manager-member-experience?utm_source=api",
+   "guid": "https://himalayas.app/companies/sidecar-health/jobs/lead-product-manager-member-experience"
+  }
+ ]
+}

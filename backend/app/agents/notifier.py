@@ -83,7 +83,8 @@ class NotifierAgent:
     def cycle_digest(self, db, needs_you: List[dict]) -> None:
         if not needs_you:
             return
-        lines = [f"{len(needs_you)} application(s) were filled but need you to finish:", ""]
+        lines = [f"{len(needs_you)} application(s) need you — finish the form, or apply "
+                 f"yourself where the source has no automated submission:", ""]
         for i, j in enumerate(needs_you, 1):
             lines += [f"{i}. {j['title']} @ {j['company']}",
                       f"   Why:  {j['why']}"]

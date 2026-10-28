@@ -1,0 +1,39 @@
+{
+ "jobPostingInfo": {
+  "id": "7fbda13c464c1028976bba4cb0550000",
+  "title": "Director, Engineering – Software Engineering",
+  "jobDescription": "<p>NVIDIA is widely recognized as one of the world’s most desirable employers, leading groundbreaking innovation in Artificial Intelligence (AI), High-Performance Computing (HPC), and Visualization. Our technologies, including the GPU, have transformed industries—from AI Inferencing and AI factory Optimization, and design to data science. Due to continued growth, NVIDIA Vietnam R&amp;D Center (VRDC) is expanding its engineering leadership to accelerate our AI data and factory platform initiatives.</p><div></div><p><b>What You’ll Be Doing:</b></p><ul><li><p>Build, lead and scale world-class eng",
+  "location": "Vietnam, Hanoi",
+  "additionalLocations": [
+   "Vietnam, Ho Chi Minh City"
+  ],
+  "postedOn": "Posted 30+ Days Ago",
+  "startDate": "2026-07-10",
+  "timeType": "Full time",
+  "jobReqId": "JR2021061",
+  "jobPostingId": "Director--Engineering---Software-Engineering_JR2021061",
+  "jobPostingSiteId": "NVIDIAExternalCareerSite",
+  "country": {
+   "descriptor": "Vietnam",
+   "id": "db69e8c8446c11de98360015c5e6daf6"
+  },
+  "canApply": true,
+  "posted": true,
+  "includeResumeParsing": true,
+  "jobRequisitionLocation": {
+   "descriptor": "Vietnam, Hanoi",
+   "country": {
+    "descriptor": "Vietnam",
+    "id": "db69e8c8446c11de98360015c5e6daf6",
+    "alpha2Code": "VN"
+   }
+  },
+  "externalUrl": "https://nvidia.wd5.myworkdayjobs.com/NVIDIAExternalCareerSite/job/Vietnam-Hanoi/Director--Engineering---Software-Engineering_JR2021061",
+  "questionnaireId": "2f2764b3a82910064296831695150000"
+ },
+ "hiringOrganization": {
+  "name": "VN01 NVIDIA Vietnam Company Limited",
+  "url": ""
+ },
+ "userAuthenticated": false
+}

@@ -51,3 +51,64 @@ def init_db() -> None:
     """Create tables if absent. Import models first so they register on Base."""
     from . import models  # noqa: F401
     Base.metadata.create_all(bind=engine)
+    _migrate()
+
+
+# Columns added after the first release: (table, column, DDL type + default).
+# create_all() only creates missing TABLES, so existing databases get these via
+# ALTER TABLE ADD COLUMN — additive and safe to run on every start.
+_ADDED_COLUMNS = [
+    ("jobs", "board", "VARCHAR(200) DEFAULT ''"),
+    ("jobs", "dedup_key", "VARCHAR(300) DEFAULT ''"),
+    ("jobs", "last_seen_at", "DATETIME"),
+]
+
+
+def add_missing_columns(eng) -> list:
+    """ALTER TABLE ADD COLUMN for every _ADDED_COLUMNS entry the table lacks.
+    Returns what was added."""
+    from sqlalchemy import inspect, text
+    insp = inspect(eng)
+    added = []
+    with eng.begin() as conn:
+        for table, col, ddl in _ADDED_COLUMNS:
+            if not insp.has_table(table):
+                continue
+            if col not in {c["name"] for c in insp.get_columns(table)}:
+                conn.execute(text(f"ALTER TABLE {table} ADD COLUMN {col} {ddl}"))
+                if col in ("board", "dedup_key"):
+                    conn.execute(text(f"CREATE INDEX IF NOT EXISTS ix_{table}_{col} ON {table} ({col})"))
+                added.append(f"{table}.{col}")
+    return added
+
+
+def _migrate() -> None:
+    add_missing_columns(engine)
+    _backfill()
+
+
+def _backfill() -> None:
+    """Fill the v0.2 columns for jobs stored before them (one-time; cheap after)."""
+    from sqlalchemy import or_, select
+    from .agents.base import dedup_key
+    from .models import Job, JobSource
+    db = SessionLocal()
+    try:
+        rows = db.scalars(select(Job).where(or_(Job.dedup_key == "", Job.dedup_key.is_(None)))).all()
+        for job in rows:
+            job.dedup_key = dedup_key(job.company, job.title, job.location)
+            if not job.board and job.source in ("greenhouse", "lever"):
+                job.board = job.company  # their company field is the board token
+        if rows:
+            db.commit()
+        # every job gets its own source row (the alias lookup for cross-source dedup)
+        have = set(db.scalars(select(JobSource.source_job_id)).all())
+        missing = [j for j in db.scalars(select(Job)).all() if j.job_id not in have]
+        for job in missing:
+            db.add(JobSource(job_id=job.job_id, source_job_id=job.job_id, source=job.source,
+                             url=job.job_url, first_seen=job.discovered_at,
+                             last_seen=job.discovered_at))
+        if missing:
+            db.commit()
+    finally:
+        db.close()

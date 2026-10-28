@@ -76,6 +76,16 @@ class Settings(BaseSettings):
     run_on_startup: bool = True
     http_timeout: int = 20
     max_concurrency: int = 4
+    # Multi-source discovery
+    enabled_providers: str = "all"          # "all" or e.g. "greenhouse,lever,ashby,remotive"
+    discovery_concurrency: int = 6          # sources fetched in parallel
+    provider_timeout: int = 20              # seconds per HTTP request
+    max_pages_per_provider: int = 5         # pagination cap per source per cycle
+    max_details_per_target: int = 40        # job-detail requests per board per cycle
+    max_jobs_per_cycle: int = 4000          # hard cap on listings ingested per cycle
+    breaker_threshold: int = 3              # consecutive failures before a source cools down
+    auto_watch_discovered: bool = True      # poll boards found inside other listings
+    max_new_companies_per_cycle: int = 15
 
     # LLM
     llm_provider: LLMProvider = LLMProvider.NONE
@@ -95,6 +105,14 @@ class Settings(BaseSettings):
     @property
     def cors_list(self) -> List[str]:
         return [o.strip() for o in self.cors_origins.split(",") if o.strip()]
+
+    @property
+    def enabled_provider_set(self) -> set:
+        from .providers import PROVIDERS
+        v = self.enabled_providers.strip().lower()
+        if v in ("", "all", "*"):
+            return set(PROVIDERS)
+        return {p.strip() for p in v.split(",") if p.strip() in PROVIDERS}
 
     @property
     def auto_apply_sources(self) -> List[str]:
@@ -136,7 +154,7 @@ class Settings(BaseSettings):
 _settings: Settings | None = None
 
 
-_SECRET_ENV_KEYS = ("GROQ_API_KEY", "GEMINI_API_KEY")
+_SECRET_ENV_KEYS = ("GROQ_API_KEY", "GEMINI_API_KEY", "ADZUNA_APP_ID", "ADZUNA_APP_KEY")
 
 
 def _export_secret_keys(env_file: Path) -> None:

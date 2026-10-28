@@ -1,8 +1,8 @@
 """Agent 3 — Matching & Ranking.
 
-Transparent 0–100 score with the exact weights from the brief:
-  skills 30 | experience/fresher 25 | project/research relevance 20 |
-  location/work-auth 10 | role alignment 10 | compensation 5
+Transparent 0–100 score:
+  skills 30 | experience/fresher 25 | project/research relevance 15 |
+  location/work-auth 10 | role alignment 10 | compensation 5 | freshness 5
 
 The score is advisory for PRIORITIZATION only. Hard eligibility (Agent 2) is
 applied separately and can veto regardless of score.
@@ -10,8 +10,10 @@ applied separately and can veto regardless of score.
 from __future__ import annotations
 
 import re
+from datetime import datetime, timezone
 from typing import List, Tuple
 
+from ..providers.base import parse_date
 from ..schemas import RawJob, ScoreResult
 from ..resume.parsing import AIML, CV, FULLSTACK, GENAI, ML, SD
 from .base import is_india_location
@@ -29,10 +31,11 @@ class MatchingAgent:
     WEIGHTS = {
         "skills": 30,
         "experience": 25,
-        "projects": 20,
+        "projects": 15,
         "location": 10,
         "role": 10,
         "compensation": 5,
+        "freshness": 5,
     }
 
     def __init__(self, profile):
@@ -50,6 +53,7 @@ class MatchingAgent:
         loc_pts, loc_note = self._location_component(job)
         role_pts, role_note = self._role_component(job.title.lower(), blob)
         comp_pts, comp_note = self._comp_component(job)
+        fresh_pts, fresh_note = self._freshness_component(job)
 
         breakdown = {
             "skills": round(skill_pts, 1),
@@ -58,11 +62,13 @@ class MatchingAgent:
             "location": round(loc_pts, 1),
             "role": round(role_pts, 1),
             "compensation": round(comp_pts, 1),
+            "freshness": round(fresh_pts, 1),
         }
         total = round(sum(breakdown.values()), 1)
 
         resume_version = self._recommend_resume(blob, job.title.lower())
-        explanation = "; ".join([exp_note, role_note, proj_note, loc_note, comp_note]).strip("; ")
+        explanation = "; ".join([exp_note, role_note, proj_note, loc_note, comp_note,
+                                 fresh_note]).strip("; ")
 
         return ScoreResult(
             total=total,
@@ -160,6 +166,21 @@ class MatchingAgent:
             # crude: if any number looks >= target (in LPA or absolute), reward
             return w, "Comp: salary disclosed"
         return w * 0.6, "Comp: present but unparsed"
+
+    def _freshness_component(self, job: RawJob) -> Tuple[float, str]:
+        """Newer postings first. Unknown date = neutral, not a match."""
+        w = self.WEIGHTS["freshness"]
+        posted = parse_date(job.posted_at)
+        if posted is None:
+            return w * 0.5, "Posted: date unknown"
+        days = (datetime.now(timezone.utc) - posted).days
+        if days <= 7:
+            return w, f"Posted: {max(days, 0)}d ago"
+        if days <= 30:
+            return w * 0.7, f"Posted: {days}d ago"
+        if days <= 90:
+            return w * 0.3, f"Posted: {days}d ago (older)"
+        return 0.0, f"Posted: {days}d ago (stale)"
 
     def _recommend_resume(self, blob: str, title: str) -> str:
         """Map the job to a resume variant label (Agent 4 owns the files and

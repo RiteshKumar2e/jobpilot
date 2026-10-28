@@ -1,0 +1,139 @@
+{
+ "id": "744000158241999",
+ "name": "Senior Staff Platform Engineer (Kubernetes, Go/Python)",
+ "uuid": "b76242d7-e81a-443c-a5b8-4191df6409cd",
+ "jobId": "3e142ac2-3bbc-4227-b5c2-6f1ec3858a0b",
+ "jobAdId": "d0eb57f2-ec84-4829-8005-fa18e3a08296",
+ "defaultJobAd": true,
+ "refNumber": "JB0075944",
+ "company": {
+  "name": "ServiceNow",
+  "identifier": "ServiceNow"
+ },
+ "location": {
+  "city": "Hyderabad",
+  "country": "in",
+  "address": "Salarpuria Sattva Knowledge City Knowledge City, Unit II, 17 to 10 Floor Survey No. 83/1, Serilingampally Mandal",
+  "postalCode": "500081",
+  "remote": false,
+  "hybrid": false,
+  "fullLocation": "Hyderabad, , India"
+ },
+ "customField": [
+  {
+   "fieldId": "60345fa28b4ba8595bef1863",
+   "fieldLabel": "Recruiting Team",
+   "valueId": "professional",
+   "valueLabel": "Professional"
+  },
+  {
+   "fieldId": "60345e1a0b24a127cbdfa148",
+   "fieldLabel": "Employee Type",
+   "valueId": "0082f6cbe6154da19322cbab1f6aa5af",
+   "valueLabel": "Regular"
+  },
+  {
+   "fieldId": "5f63a78f1dae5c5c4e54ba2b",
+   "fieldLabel": "Department",
+   "valueId": "2294038",
+   "valueLabel": "Engineering, Infrastructure and Operations"
+  },
+  {
+   "fieldId": "COUNTRY",
+   "fieldLabel": "Country/Region",
+   "valueId": "in",
+   "valueLabel": "India"
+  },
+  {
+   "fieldId": "5f63a78f1dae5c5c4e54ba2a",
+   "fieldLabel": "Brands",
+   "valueId": "default",
+   "valueLabel": "ServiceNow"
+  },
+  {
+   "fieldId": "60345d5c5165a31b17288279",
+   "fieldLabel": "Region",
+   "valueId": "858884996eea4a49baa6231279f39054",
+   "valueLabel": "APAC - Asia Pacific"
+  },
+  {
+   "fieldId": "603462175165a31b1728827d",
+   "fieldLabel": "Cost Center",
+   "valueId": "CC6336",
+   "valueLabel": "6336 Agentic AI"
+  },
+  {
+   "fieldId": "6034601b43915a29a4b3389b",
+   "fieldLabel": "Job Location",
+   "valueId": "L_HYD002",
+   "valueLabel": "Knowledge City, Unit II, 17 to 10 Floor, Survey No. 83/1, Serilingampally Mandal, Hyderabad- 500081, Telangana, India(L_HYD002)"
+  },
+  {
+   "fieldId": "618ed92b8f5e5f110e5bfb95",
+   "fieldLabel": "Work Persona",
+   "valueId": "bf7551c6-9b06-4e7c-8217-3baf43edd060",
+   "valueLabel": "Flexible"
+  },
+  {
+   "fieldId": "690cc0e8c682c3dbadaa7d73",
+   "fieldLabel": "Job Posting Type",
+   "valueId": "professional",
+   "valueLabel": "Professional"
+  }
+ ],
+ "releasedDate": "2026-10-28T09:30:30.013Z",
+ "creator": {
+  "name": "Triveni Devabathina",
+  "avatarUrl": ""
+ },
+ "postingUrl": "https://jobs.smartrecruiters.com/ServiceNow/744000158241999-senior-staff-platform-engineer-kubernetes-go-python-",
+ "applyUrl": "https://jobs.smartrecruiters.com/ServiceNow/744000158241999-senior-staff-platform-engineer-kubernetes-go-python-?oga=true",
+ "referralUrl": "https://jobs.smartrecruiters.com/external-referrals/company/ServiceNow/publication/b76242d7-e81a-443c-a5b8-4191df6409cd?dcr_ci=ServiceNow",
+ "jobAd": {
+  "sections": {
+   "companyDescription": {
+    "title": "Company Description",
+    "text": "<p>It all started when engineer Fred Luddy wrote code that automated a tedious task for his coworker, Phyllis. She cried tears of joy. That moment inspired Fred to build a company that could do that for everyone—freeing people from busywork so they could focus on meaningful work. Today, ServiceNow is the AI control tower for business reinvention. Our ServiceNow AI platform brings together any AI, any data, and any workflow— helping 85% of the Fortune 500® work smarter, faster, and better. We're building an AI-native culture where technology and talent are unstoppable together. And we're just g"
+   },
+   "jobDescription": {
+    "title": "Job Description",
+    "text": "<p>Job Description</p><p>What you get to do in this role:</p><p>• Lead the design and delivery of complex components and services within the cloud-native platform, owning them from design through production operation.</p><p>• Act as the technical lead for major features and initiatives within the team, translating ambiguous problems into clear, scalable, and executable designs.</p><p>• Partner with Principal and Distinguished Engineers to ensure alignment with broader platform architecture, engineering standards, and long-term technical strategy.</p><p>• Identify technical risks early and driv"
+   },
+   "qualifications": {
+    "title": "Qualifications",
+    "text": "<p><strong>To be successful in this role you have:</strong></p><ul><li><p>• Experience leveraging or critically thinking about how to integrate AI into engineering and platform work—AI-powered tooling, automated operational workflows, agentic systems for fleet visibility and operations, or reasoning about AI’s impact on how infrastructure is built and run.</p><p>• 14+ years of experience designing, building, and operating large-scale distributed systems and cloud-native platforms in production environments.</p><p>• Demonstrated experience building and operating Kubernetes platform infrastructu"
+   },
+   "additionalInformation": {
+    "title": "Additional Information",
+    "text": "<p><strong>Work Personas</strong></p><p>We approach our distributed world of work with flexibility and trust. Work personas (flexible, remote, or required in office) are categories that are assigned to ServiceNow employees depending on the nature of their work and their assigned work location. <a href=\"https://careers.servicenow.com/life-at-servicenow#workpersonas\" rel=\"noopener noreferrer\"><u>Learn more here</u></a>. To determine eligibility for a work persona, ServiceNow may confirm the distance between your primary residence and the closest ServiceNow office using a third-party service.</p>"
+   }
+  }
+ },
+ "active": true,
+ "visibility": "PUBLIC",
+ "industry": {
+  "id": "it_and_services",
+  "label": "Information Technology And Services"
+ },
+ "function": {
+  "id": "engineering",
+  "label": "Engineering"
+ },
+ "department": {
+  "id": 2294038,
+  "label": "Engineering, Infrastructure and Operations"
+ },
+ "experienceLevel": {
+  "id": "not_applicable",
+  "label": "Not Applicable"
+ },
+ "typeOfEmployment": {
+  "id": "permanent",
+  "label": "Full-time"
+ },
+ "language": {
+  "code": "en",
+  "label": "English",
+  "labelNative": "English (US)"
+ }
+}

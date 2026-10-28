@@ -97,6 +97,10 @@ class Job(Base):
     application_url: Mapped[str] = mapped_column(String(600), default="")
     canonical_url: Mapped[str] = mapped_column(String(600), default="", index=True)
     discovered_at: Mapped[datetime] = mapped_column(DateTime, default=_utcnow)
+    # multi-source discovery (added in v0.2; see database._migrate)
+    board: Mapped[str] = mapped_column(String(200), default="", index=True)   # ATS board / feed target
+    dedup_key: Mapped[str] = mapped_column(String(300), default="", index=True)  # company|title|place
+    last_seen_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
 
     # verification
     eligibility_status: Mapped[str] = mapped_column(
@@ -209,6 +213,63 @@ class Event(Base):
     job_id: Mapped[str] = mapped_column(String(40), default="", index=True)
     message: Mapped[str] = mapped_column(Text, default="")
     data: Mapped[dict] = mapped_column(JSON, default=dict)
+
+
+class JobSource(Base):
+    """Every place one job was found (Greenhouse board, Remotive, LinkedIn import,
+    ...). Cross-source duplicates become extra rows here, not extra jobs, so a
+    job can never be applied to twice because two portals listed it."""
+    __tablename__ = "job_sources"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    job_id: Mapped[str] = mapped_column(String(40), ForeignKey("jobs.job_id"), index=True)
+    source_job_id: Mapped[str] = mapped_column(String(40), index=True)  # make_job_id(source, ...)
+    source: Mapped[str] = mapped_column(String(40), default="")
+    url: Mapped[str] = mapped_column(String(600), default="")
+    first_seen: Mapped[datetime] = mapped_column(DateTime, default=_utcnow)
+    last_seen: Mapped[datetime] = mapped_column(DateTime, default=_utcnow)
+
+    __table_args__ = (UniqueConstraint("source_job_id", name="uq_job_sources_source_job"),)
+
+
+class Company(Base):
+    """Company registry: employers whose boards/careers pages are polled. Rows
+    come from your profile, from "Add company" in the dashboard, or from company
+    discovery (ATS links found in other listings)."""
+    __tablename__ = "companies"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    name: Mapped[str] = mapped_column(String(200), default="")
+    provider: Mapped[str] = mapped_column(String(40), index=True)   # greenhouse|ashby|careers|...
+    board: Mapped[str] = mapped_column(String(300), index=True)     # board id / careers URL
+    careers_url: Mapped[str] = mapped_column(String(600), default="")
+    domain: Mapped[str] = mapped_column(String(200), default="")
+    categories: Mapped[list] = mapped_column(JSON, default=list)
+    watch: Mapped[bool] = mapped_column(Boolean, default=True)      # polled each cycle
+    discovered_by: Mapped[str] = mapped_column(String(80), default="")  # profile|user|feed:remotive|...
+    open_jobs: Mapped[int] = mapped_column(Integer, default=0)   # relevant openings, last fetch
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=_utcnow)
+
+    __table_args__ = (UniqueConstraint("provider", "board", name="uq_company_provider_board"),)
+
+
+class ProviderHealth(Base):
+    """Per (provider, target) run history + circuit breaker."""
+    __tablename__ = "provider_health"
+
+    key: Mapped[str] = mapped_column(String(400), primary_key=True)  # "ashby:sarvam"
+    provider: Mapped[str] = mapped_column(String(40), index=True)
+    target: Mapped[str] = mapped_column(String(300), default="")
+    last_run: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    last_ok: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    last_error: Mapped[str] = mapped_column(Text, default="")
+    consecutive_failures: Mapped[int] = mapped_column(Integer, default=0)
+    total_runs: Mapped[int] = mapped_column(Integer, default=0)
+    total_failures: Mapped[int] = mapped_column(Integer, default=0)
+    jobs_last: Mapped[int] = mapped_column(Integer, default=0)
+    jobs_total: Mapped[int] = mapped_column(Integer, default=0)
+    duration_ms: Mapped[int] = mapped_column(Integer, default=0)
+    disabled_until: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
 
 
 class KeyValue(Base):

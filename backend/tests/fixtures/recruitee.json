@@ -1,0 +1,235 @@
+{
+ "offers": [
+  {
+   "category_code": "banking",
+   "careers_apply_url": "https://careers.bunq.com/o/support-experience-lead/c/new",
+   "position": 1650,
+   "company_name": "bunq",
+   "min_hours_per_week": null,
+   "hybrid": true,
+   "updated_at": "2026-10-28 06:39:52 UTC",
+   "salary": {
+    "max": null,
+    "min": null,
+    "period": null,
+    "currency": null
+   },
+   "department": "Support & Operations",
+   "guid": "rt9a6",
+   "open_questions": [],
+   "state_code": "22",
+   "max_hours": null,
+   "sharing_image": null,
+   "options_phone": "required",
+   "created_at": "2026-10-27 10:32:26 UTC",
+   "max_hours_per_week": null,
+   "locations": [
+    {
+     "id": 39967,
+     "name": "Sofia",
+     "state": "Sofia (stolitsa)",
+     "country": "Bulgaria",
+     "city": "Sofia",
+     "translations": {
+      "en": {
+       "name": "Sofia",
+       "city": "Sofia",
+       "postal_code": null,
+       "street": null,
+       "note": null
+      }
+     },
+     "country_code": "BG",
+     "postal_code": null,
+     "state_code": "22",
+     "street": null,
+     "note": null
+    },
+    {
+     "id": 39977,
+     "name": "Istanbul",
+     "state": "İstanbul",
+     "country": "Türkiye",
+     "city": "İstanbul",
+     "translations": {
+      "en": {
+       "name": "Istanbul",
+       "city": "İstanbul",
+       "postal_code": null,
+       "street": null,
+       "note": null
+      }
+     },
+     "country_code": "TR",
+     "postal_code": null,
+     "state_code": "34",
+     "street": null,
+     "note": null
+    }
+   ],
+   "location": "Sofia, Sofia (stolitsa), Bulgaria",
+   "on_site": false,
+   "tags": [],
+   "dynamic_fields": [],
+   "country": "Bulgaria",
+   "slug": "support-experience-lead",
+   "cover_image": null,
+   "city": "Sofia",
+   "experience_code": "mid_level",
+   "locations_question": "What is your preferred work location?",
+   "min_hours": null,
+   "description": "<p>At bunq, we’re here to make life easy for our users; and that starts with support they can truly trust. When something goes wrong, we don’t pass it around. We own it.<br>As a Support Team Lead, you’ll play a key role in keeping our promise of premium support, making sure escalations from our Internal AI Agent Finn are handled fast, properly, and never repeated.</p><p style=\"min-height: 1.7em;\"></p><h4><strong>Take Ownership</strong></h4><p>As a Support Team Lead, you will:</p><ul><li><p>Own AI Support escalations end-to-end and ensure timely, high-quality resolutions</p></li><li><p>Act as t",
+   "options_cv": "required",
+   "mailbox_email": "job.rt9a6@bunq.recruitee.com",
+   "close_at": null,
+   "location_question_visible": false,
+   "state_name": "Sofia (stolitsa)",
+   "remote": false,
+   "options_photo": "off",
+   "highlight": null,
+   "employment_type_code": "fulltime_fixed_term",
+   "education_code": "professional",
+   "country_code": "BG",
+   "id": 2798695,
+   "options_title": "off",
+   "published_at": "2026-10-27 12:11:34 UTC",
+   "options_salutation": "off",
+   "sharing_description": "At bunq, we’re here to make life easy for our users; and that starts with support they can truly trust. When something goes wrong, we don’t pass it around. We own it. As a Support Team Lead, you’ll pl",
+   "sharing_title": "Support Experience Lead",
+   "careers_url": "https://careers.bunq.com/o/support-experience-lead",
+   "locations_question_type": "multiple_choice",
+   "postal_code": null,
+   "locations_question_required": true,
+   "options_cover_letter": "optional",
+   "requirements": "<ul><li><p>You naturally take ownership and don’t wait for problems to be assigned to you</p></li><li><p>You enjoy fixing things that don’t work, and making sure they stay fixed</p></li><li><p>You believe great customer support is about trust, clarity, and accountability</p></li><li><p>You like coaching others and helping them grow, even in tricky situations</p></li><li><p>You’re comfortable in a fast-paced environment where priorities might evolve</p></li><li><p>You focus on outcomes over output and like seeing real impact from your work</p></li><li><p>You’re curious about using AI to improve",
+   "status": "published",
+   "title": "Support Experience Lead"
+  },
+  {
+   "category_code": "banking",
+   "careers_apply_url": "https://careers.bunq.com/o/collections-expert/c/new",
+   "position": 1649,
+   "company_name": "bunq",
+   "min_hours_per_week": "40",
+   "hybrid": true,
+   "updated_at": "2026-10-27 09:49:57 UTC",
+   "salary": {
+    "max": null,
+    "min": null,
+    "period": null,
+    "currency": null
+   },
+   "department": "Support & Operations",
+   "guid": "vy6tk",
+   "open_questions": [],
+   "state_code": "NH",
+   "max_hours": 40,
+   "sharing_image": null,
+   "options_phone": "required",
+   "created_at": "2026-10-26 13:02:53 UTC",
+   "max_hours_per_week": "40",
+   "locations": [
+    {
+     "id": 39979,
+     "name": "Amsterdam",
+     "state": "Noord-Holland",
+     "country": "Netherlands",
+     "city": "Amsterdam",
+     "translations": {
+      "en": {
+       "name": "Amsterdam",
+       "city": "Amsterdam",
+       "postal_code": null,
+       "street": null,
+       "note": null
+      }
+     },
+     "country_code": "NL",
+     "postal_code": null,
+     "state_code": "NH",
+     "street": null,
+     "note": null
+    },
+    {
+     "id": 39977,
+     "name": "Istanbul",
+     "state": "İstanbul",
+     "country": "Türkiye",
+     "city": "İstanbul",
+     "translations": {
+      "en": {
+       "name": "Istanbul",
+       "city": "İstanbul",
+       "postal_code": null,
+       "street": null,
+       "note": null
+      }
+     },
+     "country_code": "TR",
+     "postal_code": null,
+     "state_code": "34",
+     "street": null,
+     "note": null
+    },
+    {
+     "id": 39967,
+     "name": "Sofia",
+     "state": "Sofia (stolitsa)",
+     "country": "Bulgaria",
+     "city": "Sofia",
+     "translations": {
+      "en": {
+       "name": "Sofia",
+       "city": "Sofia",
+       "postal_code": null,
+       "street": null,
+       "note": null
+      }
+     },
+     "country_code": "BG",
+     "postal_code": null,
+     "state_code": "22",
+     "street": null,
+     "note": null
+    }
+   ],
+   "location": "Amsterdam, Noord-Holland, Netherlands",
+   "on_site": false,
+   "tags": [],
+   "dynamic_fields": [],
+   "country": "Netherlands",
+   "slug": "collections-expert",
+   "cover_image": null,
+   "city": "Amsterdam",
+   "experience_code": "mid_level",
+   "locations_question": "What is your preferred work location?",
+   "min_hours": 40,
+   "description": "<p>Our users just got their bunq Credit Card and want to maintain their credit history. Most don’t want to fall behind, and they worry about what happens if they do. If they miss a payment, they need bunq to help them catch up, not hit them with shame or surprises. As our Collections Expert, you make sure collections stay fair, human, and effective. 🤝</p><p style=\"min-height: 1.7em;\"></p><p>Up for this? Kick off your application by taking our assessment and find out if bunq is your perfect match! 💚</p><p style=\"min-height: 1.7em;\"></p>",
+   "options_cv": "off",
+   "mailbox_email": "job.vy6tk@bunq.recruitee.com",
+   "close_at": null,
+   "location_question_visible": true,
+   "state_name": "Noord-Holland",
+   "remote": false,
+   "options_photo": "off",
+   "highlight": null,
+   "employment_type_code": "fulltime_permanent",
+   "education_code": "bachelor_degree",
+   "country_code": "NL",
+   "id": 2797591,
+   "options_title": "off",
+   "published_at": "2026-10-26 13:13:39 UTC",
+   "options_salutation": "off",
+   "sharing_description": "Our users just got their bunq Credit Card and want to maintain their credit history. Most don’t want to fall behind, and they worry about what happens if they do. If they miss a payment, they need bun",
+   "sharing_title": "Collections Expert",
+   "careers_url": "https://careers.bunq.com/o/collections-expert",
+   "locations_question_type": "single_choice",
+   "postal_code": null,
+   "locations_question_required": true,
+   "options_cover_letter": "off",
+   "requirements": "<p>As our Collections Expert, you’ll own credit card collections end to end, from the first missed payment to a fair outcome for our users. Automation handles the first contact, and people step in from Day 30.</p><ul><li><p>📋 Make sure certified Support Adams offer standard payment plans correctly, and escalate non-standard cases to the Product Owner Lending</p></li><li><p>💬 Set the tone for every outreach, so it stays empathetic, clear, and compliant, especially for vulnerable users</p></li><li><p>🤖 Build AI-powered automation that scales our outreach, with a human in the loop where judgment ",
+   "status": "published",
+   "title": "Collections Expert"
+  }
+ ]
+}

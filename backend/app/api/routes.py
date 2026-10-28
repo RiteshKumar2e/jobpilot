@@ -9,15 +9,17 @@ from typing import List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query, UploadFile, File
 from fastapi.responses import FileResponse
+from pydantic import BaseModel
 from sqlalchemy import select, desc
 from sqlalchemy.orm import Session
 
 from ..config import get_settings
 from ..database import get_session
 from ..models import (ApplicationAttempt, ApplicationStatus, Event, Interview,
-                      Job, PipelineStage, ResumeVersion)
-from ..orchestrator import compute_stats
+                      Job, JobSource, PipelineStage, ResumeVersion)
+from ..orchestrator import compute_stats, lifecycle_state
 from ..profile_loader import load_profile
+from ..providers import PROVIDERS
 from ..schemas import JobOut, StatsOut
 from .deps import (get_orchestrator, get_scheduler, get_sheets, require_api_key)
 
@@ -61,6 +63,27 @@ def stats(db: Session = Depends(get_session)):
 
 
 # ---------- jobs ----------------------------------------------------------- #
+def _job_out(job: Job, links: dict) -> JobOut:
+    out = JobOut.model_validate(job)
+    out.lifecycle = lifecycle_state(job)
+    out.sources = links.get(job.job_id, [])
+    p = PROVIDERS.get(job.source)
+    allow = get_settings().auto_apply_sources
+    out.apply_mode = ("auto" if job.source.lower() in allow
+                      else p.apply_mode if p and p.apply_mode != "auto" else "handoff")
+    return out
+
+
+def _links_for(db, job_ids) -> dict:
+    links: dict = {}
+    if not job_ids:
+        return links
+    for s in db.scalars(select(JobSource).where(JobSource.job_id.in_(list(job_ids)))):
+        links.setdefault(s.job_id, []).append({"source": s.source, "url": s.url,
+                                               "last_seen": str(s.last_seen)})
+    return links
+
+
 @router.get("/api/jobs", response_model=List[JobOut])
 def list_jobs(
     db: Session = Depends(get_session),
@@ -69,30 +92,61 @@ def list_jobs(
     source: Optional[str] = None,
     q: Optional[str] = None,
     min_score: Optional[float] = None,
-    sort: str = Query("score", pattern="^(score|date|company)$"),
-    limit: int = 200,
+    work_mode: Optional[str] = None,
+    location: Optional[str] = None,
+    lifecycle: Optional[str] = None,
+    posted_within_days: Optional[int] = None,
+    salary_disclosed: Optional[bool] = None,
+    sort: str = Query("score", pattern="^(score|date|company|posted|salary)$"),
+    limit: int = Query(200, le=1000),
 ):
+    from sqlalchemy import func, or_
     query = select(Job)
     if status:
         query = query.where(Job.application_status == status)
     if eligibility:
         query = query.where(Job.eligibility_status == eligibility)
     if source:
-        query = query.where(Job.source == source)
+        # matches jobs found on that source even when merged into another listing
+        query = query.where(or_(Job.source == source, Job.job_id.in_(
+            select(JobSource.job_id).where(JobSource.source == source))))
     if min_score is not None:
         query = query.where(Job.match_score >= min_score)
+    if work_mode:
+        query = query.where(Job.work_mode == work_mode)
+    if location:
+        query = query.where(func.lower(Job.location).like(f"%{location.lower()}%"))
+    if salary_disclosed:
+        query = query.where(Job.salary_range != "")
     if q:
         like = f"%{q.lower()}%"
-        from sqlalchemy import func, or_
         query = query.where(or_(func.lower(Job.title).like(like),
-                                func.lower(Job.company).like(like)))
+                                func.lower(Job.company).like(like),
+                                func.lower(Job.description).like(like)))
     if sort == "score":
         query = query.order_by(desc(Job.match_score))
     elif sort == "date":
         query = query.order_by(desc(Job.discovered_at))
+    elif sort == "posted":
+        query = query.order_by(desc(Job.posted_at))
+    elif sort == "salary":
+        query = query.order_by(desc(Job.salary_range != ""), desc(Job.match_score))
     else:
         query = query.order_by(Job.company)
-    return db.scalars(query.limit(limit)).all()
+    # lifecycle / posting-age are derived, so filter after the SQL query
+    derived = bool(lifecycle or posted_within_days)
+    rows = db.scalars(query.limit(5000 if derived else limit)).all()
+    if posted_within_days:
+        from datetime import datetime, timedelta, timezone
+        from ..providers.base import parse_date
+        cutoff = datetime.now(timezone.utc) - timedelta(days=posted_within_days)
+        rows = [j for j in rows if (parse_date(j.posted_at) or cutoff) > cutoff]
+    if lifecycle:
+        wanted = set(lifecycle.upper().split(","))
+        rows = [j for j in rows if lifecycle_state(j) in wanted]
+    rows = rows[:limit]
+    links = _links_for(db, [j.job_id for j in rows])
+    return [_job_out(j, links) for j in rows]
 
 
 @router.get("/api/jobs/{job_id}", response_model=JobOut)
@@ -100,7 +154,40 @@ def get_job(job_id: str, db: Session = Depends(get_session)):
     job = db.scalar(select(Job).where(Job.job_id == job_id))
     if not job:
         raise HTTPException(404, "Job not found")
-    return job
+    return _job_out(job, _links_for(db, [job_id]))
+
+
+class ImportIn(BaseModel):
+    url: str
+    title: str = ""
+    company: str = ""
+    location: str = ""
+    description: str = ""
+
+
+@router.post("/api/jobs/import", dependencies=[Depends(require_api_key)])
+def import_job(body: ImportIn, db: Session = Depends(get_session)):
+    """Add one job by URL. It's verified, scored and prepared like any other;
+    portal imports (LinkedIn, Naukri, ...) end in a handoff — you apply."""
+    from ..importer import JobImportError, build_import
+    orch = get_orchestrator()
+    try:
+        raw, how = build_import(db, body.url, body.title, body.company, body.location,
+                                body.description)
+    except JobImportError as e:
+        raise HTTPException(422, str(e))
+    res = orch._ingest_dedup(db, [raw])
+    if not res:
+        raise HTTPException(409, "Couldn't store that job (try again).")
+    job, is_new = res[0]
+    started = False
+    if not orch.is_running():
+        threading.Thread(target=orch.process_pending, name="jobpilot-import", daemon=True).start()
+        started = True
+    return {"job_id": job.job_id, "new": is_new, "how": how, "title": job.title,
+            "company": job.company, "processing": started,
+            "message": ("Imported — verifying, scoring and preparing materials now."
+                        if started else "Imported — it'll be processed when the current run ends.")}
 
 
 @router.get("/api/jobs/{job_id}/materials")
@@ -143,8 +230,10 @@ def approve_job(job_id: str, db: Session = Depends(get_session)):
     job = db.scalar(select(Job).where(Job.job_id == job_id))
     if not job:
         raise HTTPException(404, "Job not found")
-    if job.eligibility_status == ApplicationStatus.SUBMITTED_CONFIRMED.value:
-        return {"status": "already_confirmed"}
+    # Never submit twice. (This compared eligibility_status before, so it never matched.)
+    if job.application_status in (ApplicationStatus.SUBMITTED_CONFIRMED.value,
+                                  ApplicationStatus.SUBMISSION_UNVERIFIED.value):
+        return {"status": "already_submitted", "application_status": job.application_status}
     orch = get_orchestrator()
     job.application_status = ApplicationStatus.APPROVED.value
     db.commit()

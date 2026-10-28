@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<workzag-jobs>
+
+<position>
+    <id>1834171</id>
+    <subcompany>Personio SE &amp; Co. KG</subcompany>
+    <office>Munich</office>
+    <additionalOffices>
+        <office>Berlin</office>
+    </additionalOffices>
+    <department>Product and Tech</department>
+    <recruitingCategory>Engineering</recruitingCategory>
+    <name>Staff Software Engineer, Data Platform</name>
+    <jobDescriptions></jobDescriptions>
+    <employmentType>permanent</employmentType>
+    <seniority>experienced</seniority>
+    <schedule>full-time</schedule>
+    <yearsOfExperience>7-10</yearsOfExperience>
+    <occupation>software_and_web_development</occupation>
+    <occupationCategory>it_software</occupationCategory>
+    <createdAt>2024-11-13T14:10:41+00:00</createdAt>
+</position>
+
+</workzag-jobs>

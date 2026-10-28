@@ -25,6 +25,7 @@ class RawJob(BaseModel):
     job_url: str = ""
     application_url: str = ""
     canonical_url: str = ""
+    board: str = ""          # ATS board id / feed target it came from
 
 
 # ---- Verification ----
@@ -81,6 +82,13 @@ class JobOut(BaseModel):
     next_action: str = ""
     notes: str = ""
     pipeline_stage: str
+    board: str = ""
+    # derived (filled by the API): one readable state across eligibility,
+    # pipeline and application status, every URL the job was seen at, and how
+    # it can be applied to
+    lifecycle: str = ""
+    sources: List[dict] = Field(default_factory=list)
+    apply_mode: str = ""
 
     class Config:
         from_attributes = True

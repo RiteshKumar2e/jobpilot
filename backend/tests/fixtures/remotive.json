@@ -1,0 +1,47 @@
+{
+ "00-warning": "Remotive main domain moved to remotive.com ! Please make your API calls on remotive.com/api/remote-jobs instead of remotive.io now ;) Legacy endpoint remotive.io/api/remote-jobs will be terminated in June 2022. Thank you!",
+ "0-legal-notice": "Legal warning - Hey, thanks for using Remotive's API, we appreciate it! Please note that API documentation and access is granted so that developers can share our jobs further. Please do not submit Remotive jobs to third Party websites, including but not limited to: Jooble, Neuvoo, Google Jobs, LinkedIn Jobs. Please link back to the URL found on Remotive AND mention Remotive as a source in order to Remotive to get traffic from your listing. If you don't do that, we'll terminate your API access, sorry! Jobs displayed are delayed by 24 hours, the goal being that jobs are attributed to Remotive on various platforms. Displaying our jobs in order to collect signups/email addresses to show a listing constitutes a breach of our terms of services. We offer a private, paid-for API, please email us at hello(at)remotive(dot)io for more information (starting budget is $5k/mo). Please find out terms of services on https://remotive.com/api-documentation. Please note that there is absolutely no need to request Remotive Job data too frequently. Typically, you only need to GET Remotive job data through this API a couple of times a day (we advise max. 4 times a day). Our data is not changing much faster than that anyway. Note that excessive requests will be blocked. Many thanks (Rodolphe & the Remotive team!)",
+ "job-count": 11,
+ "total-job-count": 11,
+ "jobs": [
+  {
+   "id": 2091134,
+   "url": "https://remotive.com/remote-jobs/software-development/head-of-engineering-2091134",
+   "title": "Head of Engineering",
+   "company_name": "Lemon.io",
+   "company_logo": "https://remotive.com/job/2091134/logo",
+   "category": "Software Development",
+   "tags": [
+    "AI/ML",
+    "startup",
+    "marketplace",
+    "fundraising"
+   ],
+   "job_type": "full_time",
+   "publication_date": "2026-10-26T12:20:09",
+   "candidate_required_location": "Worldwide",
+   "salary": "",
+   "description": "<p><a class=\"_container_j2da7_1\" href=\"https://jobs.ashbyhq.com/lemon-io/4dc7dd66-686c-4a07-82cc-a1a8448d34c6/application\" rel=\"nofollow\" style=\"box-sizing: border-box; background-color: rgba(0, 0, 0, 0); touch-action: manipulation; color: inherit; text-decoration: none;   font-style: normal; font-variant-ligatures: normal; font-variant-caps: normal; font-weight: 400; letter-spacing: normal; orphans: 2; text-align: start; text-indent: 0px; text-transform: none; widows: 2; word-spacing: 0px; -webkit-text-stroke-width: 0px; white-space: normal;\"></a></p><p class=\"_descriptionText_5yu8i_201 ashby",
+   "company_logo_url": "https://remotive.com/job/2091134/logo"
+  },
+  {
+   "id": 2091161,
+   "url": "https://remotive.com/remote-jobs/artificial-intelligence/ai-trainer-video-annotation-2091161",
+   "title": "AI Trainer - Video Annotation",
+   "company_name": "iMerit Technology",
+   "company_logo": "https://remotive.com/job/2091161/logo",
+   "category": "Artificial Intelligence",
+   "tags": [
+    "video",
+    "AI/ML",
+    "robotics"
+   ],
+   "job_type": "freelance",
+   "publication_date": "2026-10-22T18:40:19",
+   "candidate_required_location": "Worldwide",
+   "salary": "70K-80K",
+   "description": "<p dir=\"ltr\" style=\"line-height:1.2;margin-top:0pt;margin-bottom:2pt;\"><span style=\"color:#241e20;background-color:transparent;font-weight:700;font-style:normal;font-variant:normal;text-decoration:none;vertical-align:baseline;white-space:pre;white-space:pre-wrap;\">AI Trainer - Video Annotation</span></p><p dir=\"ltr\" style=\"line-height:1.2;margin-top:0pt;margin-bottom:10pt;\"><span style=\"color:#e33e3c;background-color:transparent;font-weight:700;font-style:normal;font-variant:normal;text-decoration:none;vertical-align:baseline;white-space:pre;white-space:pre-wrap;\">Remote   |   Independent Cont",
+   "company_logo_url": "https://remotive.com/job/2091161/logo"
+  }
+ ]
+}
