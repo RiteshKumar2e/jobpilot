@@ -35,7 +35,9 @@ _DEFAULT_NON_TARGET_TITLES = ["support", "sales", "account", "operations", "peop
                               "ux", "designer", "administrator", "customer",
                               "technical services", "pricing", "monetization", "risk",
                               "finance", "analyst", "electrical", "mechanical", "recruit",
-                              "marketing", "legal", "product manag", "hardware"]
+                              "marketing", "legal", "product manag", "hardware",
+                              # data-labelling / content gigs that say "AI" in the title
+                              "trainer", "annotation", "annotator", "tutor", "writer"]
 
 # A remote location that is open to candidates in India.
 _GLOBAL_REMOTE_RE = re.compile(
